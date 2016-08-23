@@ -124,6 +124,35 @@ re_towncode <- function(location)
   return(geo)
 }
 
+# re_GPS <- function(towncode)
+# {
+#   output='xml'
+#   radius= 1000
+#   extensions="all"
+#   batch='false'
+#   homeorcorp= 0
+#   map_ak = '196506b424d4b7983d6c6a0a358165e8'
+#   location <- as.matrix(location)
+#   lon = location[2]
+#   lat = location[1]
+#   location = paste0(lon, ",", lat)
+# 
+#   all_towncode <- read.csv("2015_all_towncode.csv",header=TRUE,sep=",")
+#   name <- subset(all_towncode,subset = (all_towncode$DM==towncode))
+#   name <- name[1,2]
+#   url= paste0("http://restapi.amap.com/v3/geocode/geo?city=",name,"&output=JSON&key=196506b424d4b7983d6c6a0a358165e8")
+# 
+#   geo <- gsub(".*<location>(.*?)<//location>.*", '\\1', getURL(url))
+#   url_head = paste0("http://restapi.amap.com/v3/geocode/regeo?key=", map_ak, "&location=")
+#   url_tail = paste0("&poitype=&radius=",radius,"&extensions=",extensions,"&batch=", batch,"&homeorcorp=",homeorcorp, "&output=",output, "&roadlevel=1")
+#   url = paste0(url_head, lon, ",", lat, url_tail)
+# 
+#   geo <- substr(geo,1,9)
+#   return(geo)
+# }
+
+
+
 # compute -----------------------------------------------------------------
 
 for(k in 1:length(Users$home))
