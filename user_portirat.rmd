@@ -1,0 +1,459 @@
+---
+title: "车辆加速度异常数据报告"
+author: "Carsmart"
+date: "2016年7月15日"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r Input_env, echo=F, message=FALSE, warning=FALSE}
+
+output='xml'
+radius= 1000
+extensions="all"
+batch='false'
+homeorcorp= 0
+map_ak = '196506b424d4b7983d6c6a0a358165e8'
+path <- "e:\\0.Project/13.jiangxi_PICC"
+setwd(path)
+##read
+
+Outliers<-read.csv("./datav0.2/data_outliers.csv")
+IMEI_tid_vin<-read.csv("IMEI_tid_vid.csv")
+if (!require("rstudioapi"))install.packages('rstudioapi')
+library(rstudioapi)
+if (!require("DT"))install.packages('DT')
+library(DT)
+if (!require("rmarkdown"))install.packages('rmarkdown')
+library(rmarkdown)
+if (!require("leaflet"))install.packages('leaflet')
+library(leaflet)
+if (!require("plotly"))install.packages('plotly')
+library(plotly)
+if (!require("stringr"))install.packages('stringr')
+library(stringr)
+if (!require("RCurl"))install.packages('RCurl')
+library(RCurl)
+if (!require("stringr"))install.packages('stringr')
+library(stringr)
+```
+
+
+
+```{r Myfun, echo=F, message=FALSE, warning=FALSE}
+##gethtml
+gethtml <- function(x)
+  {
+  path <- tempdir()
+  dir.name1 <- as.vector(dir(path))
+  # x
+  print(x)
+  #eval(x)
+  # rstudioapi::sendToConsole(print(x))
+  dir.name2 <- as.vector(dir(path))
+  dir.name <- setdiff(dir.name2,dir.name1)
+  a<-paste(tempdir(),"\\",dir.name,"\\index.html",sep="")
+  # a<-paste("http://localhost:31026/session/",dir.name,"/index.html",sep="")
+  return(a)
+  }
+
+##inorde_icon
+inorde <- function(x, y,type) 
+  {
+  switch(type,
+        increase =b <- paste("addMarkers(lng=",x,",lat=",y,",icon = icons(iconUrl = sprintf(\'http://cdn-img.easyicon.net/png/11682/1168268.gif\'),iconWidth = 20, iconHeight = 20,iconAnchorX = 9, iconAnchorY = 9),popup=\'The HIGH severity result the trip\')",sep=""),
+        decrease = b <- paste("addMarkers(lng=",x,",lat=",y,",icon = icons(iconUrl = sprintf(\'http://cdn.leafletjs.com/leaflet-0.7.3/images/marker-icon.png\'),iconWidth = 20, iconHeight = 20,iconAnchorX = 9, iconAnchorY = 9),popup=\'The HIGH severity result the trip\')",sep=""))
+  return(b)
+}
+##inorde_icon_in_map
+addmarker <- function(Z) 
+  {
+
+  
+if(length(Z$Lat.cal)==1)
+    {
+      # str(
+        a <- inorde(Z$Lon.cal[1],Z$Lat.cal[1],Z$inorde_flag[1])
+}
+  else{
+     # str(
+       a<- inorde(Z$Lon.cal[1],Z$Lat.cal[1],Z$inorde_flag[1])
+     for(k in 2:length(Z$Lat.cal))
+  {
+   a <- paste(a,inorde(Z$Lon.cal[k],Z$Lat.cal[k],Z$inorde_flag[k]),sep = "%>%")
+     }
+     
+  }
+  return(a)
+}
+regeo <- function(location)
+#return_convert_loctions&formatted_address
+{
+  output='xml'
+  radius= 1000
+  extensions="all"
+  batch='false'
+  homeorcorp= 0
+  map_ak = '196506b424d4b7983d6c6a0a358165e8'
+  location <- as.matrix(location)
+  lon = location[2]
+  lat = location[1]
+  location = paste0(lon, ",", lat)
+  url_head1 = paste0("http://restapi.amap.com/v3/assistant/coordinate/convert?locations=")
+  url_tail1 = paste0("&coordsys=gps&output=",output,"&key=", map_ak)
+  url1 = paste0(url_head1, location, url_tail1)
+  str1 <- getURL(url1)
+  location <- gsub(".*<locations>(.*?)</locations>.*", '\\1', str1)
+  lon <- as.numeric(strsplit(as.character(location),split=",")[[1]][1])
+  lat <- as.numeric(strsplit(as.character(location),split=",")[[1]][2])
+  
+  url_head = paste0("http://restapi.amap.com/v3/geocode/regeo?key=", map_ak, "&location=")
+  url_tail = paste0("&poitype=&radius=",radius,"&extensions=",extensions,"&batch=", batch,"&homeorcorp=",homeorcorp, "&output=",output, "&roadlevel=1")
+  url = paste0(url_head, lon, ",", lat, url_tail)
+  geo <- gsub(".*<formatted_address>(.*?)</formatted_address>.*", '\\1', getURL(url))
+  return(geo)
+}
+
+}```
+
+
+```{r Input_data, echo=FALSE, message=FALSE, warning=FALSE}
+
+
+##datatable
+Outliers$correlation <- paste0(Outliers$tid,Outliers$vin)
+IMEI_tid_vin$correlation <- paste0(IMEI_tid_vin$terminal_id,IMEI_tid_vin$vehicle_id)
+Outliers<- merge(Outliers,IMEI_tid_vin, by.x  = "correlation",by.y ="correlation" )
+
+##return address
+for(i in 1:length(Outliers$tid))
+{
+  location <- matrix(c(Outliers$gps_latitude_deflection[i],Outliers$gps_longitude_deflection[i]),byrow=T, ncol=2)
+  Outliers$Address[i]<-regeo(location)
+}
+
+##UTC2date
+Outliers$Start_Time<-as.character(as.POSIXlt(Outliers$Start,origin='1970-01-01 00:00:00',format='%Y-%m-%d %H:%M:%S'))
+Outliers$Outliers_Time<-as.character(as.POSIXlt(Outliers$UTC,origin='1970-01-01 00:00:00',format='%Y-%m-%d %H:%M:%S'))
+Outliers$Num <- paste(Outliers$tid,Outliers$vin,Outliers$Start,sep = "_")
+Outliers_Unique<-as.data.frame(unique(Outliers[c("tid","vin","Start","Num","imei")]))
+
+
+
+for (i in 1:length(Outliers_Unique$tid))
+  {
+
+  assign(paste("Outliers_trip",i,sep = "_"),read.csv(paste(Outliers_Unique$Num[i],".csv",sep = "")))
+  len <- get(paste("Outliers_trip",i,sep = "_"))
+  len$Time<-as.character(as.POSIXlt(len$UTC,origin='1970-01-01 00:00:00',format='%Y-%m-%d %H:%M:%S'))
+  Speed <- len$Speed.cal
+  Time <- len$Time
+  len$Time2 <- len$Time
+  Time2 <- len$Time
+  ACC <- len$acc
+  
+  
+  lat_trip <- len$Lat.cal
+  lon_trip <- len$Lon.cal
+
+  assign(paste("Outliers_trip_allpoint",i,sep = "_"),subset(Outliers,Num == Outliers_Unique$Num[i],c("Lat.cal","Lon.cal","Num","Outliers_Time","acc")))
+  len2 <- get(paste("Outliers_trip_allpoint",i,sep = "_"))
+
+for(k in 1:length(len2$Lat.cal))
+  
+{if(len2$acc[k]>0)
+{
+  len2$inorde_flag[k]<-"increase"
+}
+  else
+  {
+      len2$inorde_flag[k]<-"decrease"
+  }
+}
+  lat_trip_allpoint <- len2$Lat.cal
+  lon_trip_allpoint <- len2$Lon.cal
+  time_trip_allpoint <- len2$Outliers_Time
+  
+  # inorde_flag <- len2$inorde_flag
+# for(i in 1:length(subset(Outliers,Num == Outliers_Unique$Num[i],c(Lat.cal,Lon.cal,Num))))
+  
+##add_map
+map_str <- paste("leaflet() %>%
+  addTiles() %>%
+  setView(lng=mean(lon_trip_allpoint), lat=mean(lat_trip_allpoint),zoom = 12)%>%
+  addPolylines(lng = lon_trip, lat = lat_trip, layerId = NULL, group = NULL,stroke = TRUE, weight = 5, opacity = 0.5, fill = FALSE, fillOpacity = 0.2, dashArray = NULL,smoothFactor = 1, noClip = FALSE, popup = NULL, options = pathOptions())%>%",  addmarker(len2),sep = "")
+assign(paste("Outliers_trip",i,"map",sep = "_"), map<-eval(parse(text=(map_str))))
+
+    # addMarkers(lng=115.88288,lat=28.658457,icon = icons(iconUrl = sprintf('http://cdn.leafletjs.com/leaflet-0.7.3/images/marker-icon.png'),iconWidth = 20, iconHeight = 20,iconAnchorX = 9, iconAnchorY = 9),popup='The HIGH severity result the trip')%>%addMarkers(lng=115.828035819189,lat=28.5732824144134,icon = icons(iconUrl = sprintf('http://cdn.leafletjs.com/leaflet-0.7.3/images/marker-icon.png'),iconWidth = 20, iconHeight = 20,iconAnchorX = 9, iconAnchorY = 9),popup='The HIGH severity result the trip')
+
+# time_trip_allpoint <- as.data.frame(time_trip_allpoint)
+# assign(paste("Outliers_Speed",i,"map",sep = "_"),plot_ly(len, x = Time, y = Speed) %>%
+#   layout(title = "The motion state of the vehicle(Speed)",
+#          showlegend = FALSE) %>%
+#   # dplyr::filter(Time ==  time_trip_allpoint[1,1] | Time ==  time_trip_allpoint[2,1]) %>%
+#   layout(annotations = list(list(x = time_trip_allpoint, y = subset(len,c("Speed.cal"),subset=(len$Time==time_trip_allpoint[1,1]|len$Time==time_trip_allpoint[2,1])), text = "Outliers", showarrow = T)))%>%
+#     dplyr::filter(Time2 ==  time_trip_allpoint[1,1]) %>%
+#   layout(annotations = list(list(x = Time2, y = subset(len,c("Speed.cal"),subset=(len$Time2==time_trip_allpoint[2,1])), text = "Outliers", showarrow = T))))
+
+##the number of map
+# map<-function(time_trip_allpoint){
+# 
+#   return()
+# }
+
+
+
+
+
+p <- plot_ly(economics, x = date, y = uempmed, xaxis =as.numeric(as.POSIXct(time_trip_allpoint[1]))as.character(as.POSIXlt(len$UTC,origin='1970-01-01 00:00:00',format='%Y-%m-%d %H:%M:%S')) time_trip_allpoint[1]-, yaxis = "y1")
+p <- add_trace(p, x = date, y = unemploy, xaxis = "x1", yaxis = "y2")
+p <- layout(p, showlegend = FALSE, yaxis = list(anchor = 'x', domain = c(0, 0.45)),
+            yaxis2 = list(anchor = 'x', domain = c(0.55, 1), title = 'unemploy'))
+p
+
+assign(paste("Outliers_detail",i,"map",sep = "_"),plot_ly( x = Time, y = Speed) %>% dplyr::filter(Time ==  time_trip_allpoint[1]) %>%  layout(annotations = list(x = Time , y = Speed, text = "Outliers", showarrow = T)), plot_ly(x = Time, y =ACC) %>% dplyr::filter(Time ==  time_trip_allpoint[1]) %>%  layout(annotations = list(x = Time , y = ACC, text = "Outliers", showarrow = T)),
+  margin = 0.05,
+  nrows=2)%>%
+  layout(title = "The motion state of the vehicle(Speed)",
+         showlegend = FALSE,
+         shapes = list(               list(type = "rect",
+                    fillcolor = "blue", line = list(color = "blue"), opacity = 0.3,
+                    x0 = len$Time[1], x1 = len$Time[20], xref = "x",
+                    y0 = 0, y1 = max(Speed), yref = "y")))
+  
+)
+
+
+
+
+
+
+
+
+assign(paste("Outliers_detail",i,"map",sep = "_"),subplot(plot_ly( x = Time, y = Speed) %>% dplyr::filter(Time ==  time_trip_allpoint[1]) %>%  layout(annotations = list(x = Time , y = Speed, text = "Outliers", showarrow = T)), plot_ly(x = Time, y =ACC) %>% dplyr::filter(Time ==  time_trip_allpoint[1]) %>%  layout(annotations = list(x = Time , y = ACC, text = "Outliers", showarrow = T)),
+  margin = 0.05,
+  nrows=2
+)%>%
+  layout(title = "The motion state of the vehicle(Speed)",
+         showlegend = FALSE,
+         shapes = list(
+               list(type = "rect",
+                    fillcolor = "blue", line = list(color = "blue"), opacity = 0.3,
+                    x0 = len$Time[1], x1 = len$Time[20], xref = "x",
+                    y0 = 0, y1 = max(Speed), yref = "y")))
+  
+)
+
+layout(p, title = 'Highlighting with Rectangles',
+             )
+###mystery?
+assign(paste("Outliers_ACC",i,"map",sep = "_"),plot_ly(len, x = Time, y =acc) %>%
+  layout(title = "The motion state of the vehicle(ACC)",
+         showlegend = FALSE))
+  %>%
+  dplyr::filter(Time ==  time_trip_allpoint[1]) %>%
+  layout(annotations = list(x = Time , y = acc, text = "Outliers", showarrow = T)))
+
+  # str(map_Speed0 <- plot_ly(len, x = Time, y = Speed.cal))
+
+
+
+}
+
+
+
+
+# for (j in 1:4)
+# {
+#   # str_trip_map <- paste("Outliers_trip",j,"map",sep = "_")
+#   eval(parse(text=(paste("Outliers_trip",j,"map",sep = "_"))))
+#   
+#   # str_trip_map <- paste("Outliers_Speed",j,"map",sep = "_")
+#   # eval(parse(text=(str_trip_map)))
+#   # str_trip_map <- paste("Outliers_ACC",j,"map",sep = "_")
+#   # eval(parse(text=(str_trip_map)))
+# 
+# }
+```
+
+
+```{r report_map1, echo=FALSE}
+#All_Data_Summary
+Outliers_show <- Outliers[c("imei","Start_Time","Outliers_Time","Address")]
+# datatable(
+#   Outliers_show,
+#   filter = 'top',
+#   caption = htmltools::tags$caption(
+#     style = 'caption-side: top; text-align: center;',
+#     'Table: ', htmltools::em('All Outliers Data Screening')
+#   )
+# )
+# 
+# m = matrix(c(
+#   '<b>Bold</b>', '<em>Emphasize</em>', '<a href="http://rstudio.com">RStudio</a>',
+#   '<a href="#" onclick="alert(\'Hello World\');">Hello</a>'
+# ), 2)
+# colnames(m) = c('<span style="color:red">Column 1</span>', '<em>Column 2</em>')
+# datatable(m, escape = FALSE)
+
+
+Outliers_show$Outliers_trip <-  0
+Outliers_show$Outliers_trip[2] <- paste("<a href=\"",gethtml(Outliers_trip_2_map),"\">map</a>",sep="")
+Outliers_show$Outliers_trip[3] <- paste("<a href=\"",gethtml(Outliers_trip_3_map),"\">map</a>",sep="")
+Outliers_show$Outliers_trip[4] <- paste("<a href=\"",gethtml(Outliers_trip_4_map),"\">map</a>",sep="")
+# gethtml(Outliers_trip_1_map)
+# Outliers_show <- Outliers[c("imei","Start_Time","Outliers_Time","Address")]
+datatable(
+  as.matrix(Outliers_show),
+  escape = FALSE,
+  filter = 'top',
+  # colnames(m) = c('<span style="color:red">Column 1</span>', '<em>Column 2</em>')
+  caption = htmltools::tags$caption(
+    style = 'caption-side: top; text-align: center;',
+    'Table: ', htmltools::em('All Outliers Data Screening')
+  )
+)
+
+
+
+
+
+
+```
+  
+  
+```{r report_speed1, echo=FALSE}
+Outliers_Speed_1_map
+```
+  
+  
+```{r report_acc1, echo=FALSE}
+Outliers_ACC_1_map
+```
+  
+  
+```{r report_map2, echo=FALSE}
+Outliers_trip_2_map
+
+```
+  
+  
+```{r report_speed2, echo=FALSE}
+Outliers_Speed_2_map
+```
+  
+  
+```{r report_acc2, echo=FALSE}
+Outliers_ACC_2_map
+```
+  
+  
+```{r report_map3, echo=FALSE}
+Outliers_trip_3_map
+
+```
+  
+  
+```{r report_speed3, echo=FALSE}
+Outliers_Speed_3_map
+```
+  
+  
+```{r report_acc3, echo=FALSE}
+Outliers_ACC_3_map
+```
+  
+  
+```{r report_map4, echo=FALSE}
+Outliers_trip_4_map
+
+```
+  
+  
+```{r report_speed4, echo=FALSE}
+Outliers_Speed_4_map
+```
+  
+  
+```{r report_acc4, echo=FALSE}
+Outliers_ACC_4_map
+```
+  
+  
+
+
+
+
+
+```{r, echo=FALSE}
+# 
+# 地图展示
+
+# <a href="http://rstudio.com">RStudio</a>
+# m = matrix(c(
+#   '<b>Bold</b>', '<em>Emphasize</em>', '<a href="http://localhost:30130/session/viewhtml394415f4dc6/index.html\">Outliers_trip_1_map</a>',
+#   rstudioapi::sendToConsole("Outliers_trip_1_map", execute = TRUE)>Outliers_trip_1_map<'
+# ), 2)
+# colnames(m) = c('<span style="color:red">Column 1</span>', '<em>Column 2</em>')
+# datatable(m, escape = FALSE)
+
+# 
+# rstudioapi::sendToConsole("Outliers_trip_1_map", execute = TRUE)
+# Outliers_trip_2_map
+# Outliers_Speed_2_map
+# Outliers_ACC_2_map
+# 
+# Outliers_trip_3_map
+# Outliers_Speed_3_map
+# Outliers_ACC_3_map
+##why???
+# for(j in 1:length(Outliers_Unique$tid))
+# 
+# {
+#   
+# }
+
+# str(a<-Outliers_trip_1_map)
+
+# 
+# O
+# O
+# Outliers_trip_4_map
+# 
+# O
+
+# b<-0
+# b[1]<-as.data.frame(b)
+# # str(<-get(paste("Outliers_trip",1,"map",sep = "_")))
+# a<-paste("Outliers_trip",1,"map",sep = "_")
+
+  # a <- paste(paste("Outliers_trip",j,"map",sep = "_"),sep = "
+# ")
+#   
+#   b[j]<-get(a)
+#   b[j]
+# }
+# x<-vector()
+
+# print(a)
+
+
+  # get(paste("Outliers_trip",j,"map",sep = "_"))
+  # print(get(paste("Outliers_Speed",j,"map",sep = "_")))
+  # str(a<-get(paste("Outliers_trip",1,"map",sep = "_")))
+  # a
+  # 
+  # print(a)
+  # print(get(paste("Outliers_ACC",j,"map",sep = "_")))
+  # str(x[j]<-get(paste("Outliers_trip",j,"map",sep = "_")))
+
+  # str(a <- get(paste(a,str(get(paste("Outliers_trip",i,"map",sep = "_"))),sep = " ")))
+
+
+
+```
+
