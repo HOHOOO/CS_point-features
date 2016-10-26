@@ -74,5 +74,9 @@ end_rdd<-SparkR:::mapValues(parts, function(x) {
 
     user_trip
     })
-      
-SparkR:::saveAsTextFile(end_rdd, "/user/kettle/ubi/dw/ClusterPoint")
+
+end_rdd_value<-SparkR:::values(end_rdd)
+end_end_rdd<-SparkR:::toDF(end_rdd_value,list('deciveid','tid','vid','start','actual_start','s_end','dura','period','lat_st_ori','lon_st_ori','lat_en_ori','lon_en_ori','m_ori','lat_st_def','lon_st_def','lat_en_def','lon_en_def','m_def','speed_mean','gps_speed_sd','gps_acc_sd','stat_date','dura2','sort_st','sort_en'))
+registerTempTable(end_end_rdd,"cluster_point")
+sql(sqlContext,"insert overwrite table ubi_dm_cluster_point partition(stat_date=) select * from cluster_point")
+CREATE external TABLE ubi_dm_cluster_point (deviceid String,tid String,vid String,start INT,actual_start INT,s_end INT,dura DOUBLE,period INT,lat_st_ori DOUBLE,lon_st_ori DOUBLE,lat_en_ori DOUBLE,lon_en_ori DOUBLE,m_ori DOUBLE,lat_st_def DOUBLE,lon_st_def DOUBLE,lat_en_def DOUBLE,lon_en_def DOUBLE,m_def DOUBLE,speed_mean DOUBLE,gps_speed_sd DOUBLE,gps_acc_sd DOUBLE,dura2 INT,sort_st String,sort_en String) partitioned BY (stat_date string) ROW format delimited FIELDS TERMINATED BY ',' LOCATION '/user/kettle/ubi/dm/ubi_dm_cluster_point';
