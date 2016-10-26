@@ -13,6 +13,7 @@ stat_trip
 })
 rdd<-SparkR:::zipRDD(list_rd,stat_rdd)
 parts <- SparkR:::groupByKey(rdd,200L)
+SparkR:::cache(parts)
 end_rdd<-SparkR:::mapValues(parts, function(x) {
     library('SoDA')
     user_trip<-matrix(unlist(x),floor(length(unlist(x))/25),ncol=25,byrow=T)
