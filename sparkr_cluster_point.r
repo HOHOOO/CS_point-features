@@ -1,4 +1,4 @@
-trip<-sql(hiveContext,"select * from trip_stat limit 100")
+trip<-sql(hiveContext,"select * from trip_stat")
 library(magrittr)
 SparkR:::includePackage(sqlContext, 'SoDA')
 trip = trip %>% withColumn("dura2", lit("0")) %>% withColumn("sort_st", lit("0")) %>% withColumn("sort_en", lit("0"))
