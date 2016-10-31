@@ -72,29 +72,16 @@ end_rdd<-SparkR:::mapValues(parts, function(x) {
   user_trip<-user_trip[,-1]
   user_trip<-as.matrix(user_trip)
   }
-    user_trip<-as.list(user_trip)
+
     user_trip
     })
-end_rdd_value<-SparkR:::values(end_rdd)
-
-
-
-list_r<-SparkR:::map(end_rdd_value, function(x) {
-1
+end_rdd_rdd <- SparkR:::flatMapValues(end_rdd, function(x) {
+    stat_trip <-  matrix(unlist(x),floor(length(unlist(x))/25),ncol=25)
+    stat_trip <- split(stat_trip, row(stat_trip))
+    stat_trip
 })
-stat_r_2<-SparkR:::map(end_rdd_value, function(x) {
-  user<-matrix(unlist(x),25,ncol=floor(length(unlist(x))/25),byrow=T)
-user
-})
-rdd1<-SparkR:::zipRDD(list_r,stat_r_2)
-part <- SparkR:::groupByKey(rdd1,200L)
-list_rr<-SparkR:::mapValues(part, function(x) {
-user<-matrix(unlist(x),floor(length(unlist(x))/25),ncol=25,byrow=T)
-user
-})
-    
-end_r_valu<-SparkR:::values(list_rr)
-end_end_rdd<-SparkR:::toDF(end_r_value,list('deciveid','tid','vid','start','actual_start','s_end','dura','period','lat_st_ori','lon_st_ori','lat_en_ori','lon_en_ori','m_ori','lat_st_def','lon_st_def','lat_en_def','lon_en_def','m_def','speed_mean','gps_speed_sd','gps_acc_sd','stat_date','dura2','sort_st','sort_en'))
+end_rdd_value<-SparkR:::values(end_rdd_rdd)
+end_end_rdd<-SparkR:::toDF(end_rdd_value,list('deciveid','tid','vid','start','actual_start','s_end','dura','period','lat_st_ori','lon_st_ori','lat_en_ori','lon_en_ori','m_ori','lat_st_def','lon_st_def','lat_en_def','lon_en_def','m_def','speed_mean','gps_speed_sd','gps_acc_sd','stat_date','dura2','sort_st','sort_en'))
 registerTempTable(end_end_rdd,"cluster_point")
 sql(hiveContext,"set hive.exec.dynamic.partition.mode=nostrick")
 sql(hiveContext,"set hive.exec.dynamic.partition=true")
@@ -102,6 +89,12 @@ sql(hiveContext,"set hive.exec.max.dynamic.partitions.pernode = 2000000000")
 sql(hiveContext,"set hive.exec.max.dynamic.partitions = 2000000000")
 sql(hiveContext,"set hive.exec.max.created.files = 2000000000")
 sql(hiveContext,"insert overwrite table ubi_dm_cluster_point partition (stat_date) select * from cluster_point")
+
+研发-王留成 2016/10/31 16:11:49
+flat_end_rdd<-SparkR:::flatMapValues(parts,function(x){
+  end_trip<-x
+  end_trip
+  })
 
 Error in readBin(con, raw(), stringLen, endian = "big") : 
   invalid 'n' argument
