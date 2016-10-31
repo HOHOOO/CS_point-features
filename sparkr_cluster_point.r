@@ -88,5 +88,5 @@ sql(hiveContext,"set hive.exec.dynamic.partition=true")
 sql(hiveContext,"set hive.exec.max.dynamic.partitions.pernode = 2000000000")
 sql(hiveContext,"set hive.exec.max.dynamic.partitions = 2000000000")
 sql(hiveContext,"set hive.exec.max.created.files = 2000000000")
-sql(hiveContext,"insert overwrite table ubi_dm_cluster_point partition (stat_date) select * from cluster_point")
+sql(hiveContext,"insert overwrite table ubi_dm_cluster_point partition (stat_date) select deciveid,tid,vid,start,actual_start,s_end,dura,period,lat_st_ori,lon_st_ori,lat_en_ori,lon_en_ori,m_ori,lat_st_def,lon_st_def,lat_en_def,lon_en_def,m_def,speed_mean,gps_speed_sd,gps_acc_sd,dura2,sort_st,sort_en,stat_date, from cluster_point")
 
