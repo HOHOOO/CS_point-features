@@ -1,4 +1,4 @@
-trip<-sql(hiveContext,"select * from trip_stat limit 5000")
+trip<-sql(hiveContext,"select * from trip_stat")
 library(magrittr)
 SparkR:::includePackage(sqlContext, 'SoDA')
 trip = trip %>% withColumn("dura2", lit("0")) %>% withColumn("sort_st", lit("0")) %>% withColumn("sort_en", lit("0"))
@@ -90,17 +90,3 @@ sql(hiveContext,"set hive.exec.max.dynamic.partitions = 2000000000")
 sql(hiveContext,"set hive.exec.max.created.files = 2000000000")
 sql(hiveContext,"insert overwrite table ubi_dm_cluster_point partition (stat_date) select * from cluster_point")
 
-研发-王留成 2016/10/31 16:11:49
-flat_end_rdd<-SparkR:::flatMapValues(parts,function(x){
-  end_trip<-x
-  end_trip
-  })
-
-Error in readBin(con, raw(), stringLen, endian = "big") : 
-  invalid 'n' argument
-Calls: source ... withVisible -> eval -> eval -> <Anonymous> -> readBin
-Execution halted
-Error in if (numBroadcastVars > 0) { : argument is of length zero
-Calls: source -> withVisible -> eval -> eval
-Execution halted) [duplicate 1]
-16/10/28 14:25:11 INFO TaskSchedulerImpl: Removed TaskSet 206.0, whose tasks have all completed, from pool
