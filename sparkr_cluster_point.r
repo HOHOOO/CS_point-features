@@ -76,36 +76,22 @@ end_rdd<-SparkR:::mapValues(parts, function(x) {
     user_trip
     })
 end_rdd_value<-SparkR:::values(end_rdd)
+
+
+
 list_r<-SparkR:::map(end_rdd_value, function(x) {
-use<-matrix(unlist(x),floor(length(unlist(x))/25),ncol=25,byrow=T)
-use<-1
+1
 })
-stat_r<-SparkR:::map(end_rdd_value, function(x) {
-stat_trp<-matrix(unlist(x),floor(length(unlist(x))/25),ncol=25,byrow=T)
-
-stat_trp
-})
-rdd1<-SparkR:::zipRDD(list_r,stat_r)
-part <- SparkR:::groupByKey(rdd1,200L)
-end_r_value<-SparkR:::values(part)
-end_r<-SparkR:::map(end_r_value, function(x) {
-   user_trip<-matrix(unlist(x),floor(length(unlist(x))/25),ncol=25,byrow=T)
-
-user_trip})
-user_trip<-as.list(user_trip)
-stat_trp<-as.list(stat_trp)
-SparkR:::cache(part)
-
-list_rr<-SparkR:::mapValues(part, function(x) {
-user<-matrix(unlist(x),floor(length(unlist(x))/25),ncol=25,byrow=T)
-user<-as.list(user)
+stat_r_2<-SparkR:::map(end_rdd_value, function(x) {
+  user<-matrix(unlist(x),25,ncol=floor(length(unlist(x))/25),byrow=T)
 user
 })
-
-end_r<-SparkR:::mapValues(end_r_value, function(x) {
-   user_trip<-matrix(unlist(x),floor(length(unlist(x))/25),ncol=25,byrow=T)
-user_trip})
-
+rdd1<-SparkR:::zipRDD(list_r,stat_r_2)
+part <- SparkR:::groupByKey(rdd1,200L)
+list_rr<-SparkR:::mapValues(part, function(x) {
+user<-matrix(unlist(x),floor(length(unlist(x))/25),ncol=25,byrow=T)
+user
+})
     
 end_r_valu<-SparkR:::values(list_rr)
 end_end_rdd<-SparkR:::toDF(end_r_value,list('deciveid','tid','vid','start','actual_start','s_end','dura','period','lat_st_ori','lon_st_ori','lat_en_ori','lon_en_ori','m_ori','lat_st_def','lon_st_def','lat_en_def','lon_en_def','m_def','speed_mean','gps_speed_sd','gps_acc_sd','stat_date','dura2','sort_st','sort_en'))
