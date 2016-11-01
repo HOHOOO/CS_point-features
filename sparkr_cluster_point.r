@@ -1,8 +1,19 @@
+library(SparkR)
+######## debugs spark 1.6 #####################################
+connectBackend.orig <- getFromNamespace('connectBackend', pos='package:SparkR')
+connectBackend.patched <- function(hostname, port, timeout = 3600*48) {
+   connectBackend.orig(hostname, port, timeout)
+}
+assignInNamespace("connectBackend", value=connectBackend.patched, pos='package:SparkR')
+
+######## import data #####################################
 trip<-sql(hiveContext,"select * from trip_stat")
 library(magrittr)
 SparkR:::includePackage(sqlContext, 'SoDA')
 trip = trip %>% withColumn("dura2", lit("0")) %>% withColumn("sort_st", lit("0")) %>% withColumn("sort_en", lit("0"))
 trip_rdd<-SparkR:::toRDD(trip)
+
+######## zip&groupBy with keys #####################################
 list_rd<-SparkR:::map(trip_rdd, function(x) {
 user<-matrix(unlist(x),floor(length(unlist(x))/25),ncol=25,byrow=T)
 user<-user[1,1]
@@ -14,6 +25,8 @@ stat_trip
 rdd<-SparkR:::zipRDD(list_rd,stat_rdd)
 parts <- SparkR:::groupByKey(rdd,200L)
 SparkR:::cache(parts)
+
+######## main function #####################################
 end_rdd<-SparkR:::mapValues(parts, function(x) {
     library('SoDA')
     user_trip<-matrix(unlist(x),floor(length(unlist(x))/25),ncol=25,byrow=T)
@@ -71,18 +84,29 @@ end_rdd<-SparkR:::mapValues(parts, function(x) {
   user_trip<-user_trip[,-1]
   user_trip<-as.matrix(user_trip)
   }
-
-    user_trip
+  a<-user_trip[,22]
+  user_trip[,22]<-user_trip[,23]
+  user_trip[,23]<-user_trip[,24]
+  user_trip[,24]<-user_trip[,25]
+  user_trip[,25]<-a
+  user_trip
     })
-flat_end_rdd<-SparkR:::flatMap(end_rdd_value,function(x){
-  end_trip<-matrix(unlist(x),floor(length(unlist(x))/25),ncol=25,byrow=T)
-  end_trip
-  })
-end_rdd_value<-SparkR:::values(end_rdd)
-end_end_rdd<-SparkR:::toDF(flat_end_rdd,list('deciveid','tid','vid','start','actual_start','s_end','dura','period','lat_st_ori','lon_st_ori','lat_en_ori','lon_en_ori','m_ori','lat_st_def','lon_st_def','lat_en_def','lon_en_def','m_def','speed_mean','gps_speed_sd','gps_acc_sd','stat_date','dura2','sort_st','sort_en'))
+
+######## change structure #####################################
+end_rdd_rdd <- SparkR:::flatMapValues(end_rdd, function(x) {
+    stat_trip <-  matrix(unlist(x),floor(length(unlist(x))/25),ncol=25)
+    stat_trip <- split(stat_trip, row(stat_trip))
+    stat_trip
+})
+end_rdd_value<-SparkR:::values(end_rdd_rdd)
+
+######## register dynamic.partitions table #####################################
+end_end_rdd<-SparkR:::toDF(end_rdd_value,list('deciveid','tid','vid','start','actual_start','s_end','dura','period','lat_st_ori','lon_st_ori','lat_en_ori','lon_en_ori','m_ori','lat_st_def','lon_st_def','lat_en_def','lon_en_def','m_def','speed_mean','gps_speed_sd','gps_acc_sd','dura2','sort_st','sort_en','stat_date'))
 registerTempTable(end_end_rdd,"cluster_point")
 sql(hiveContext,"set hive.exec.dynamic.partition.mode=nostrick")
+sql(hiveContext,"set hive.exec.dynamic.partition=true")
 sql(hiveContext,"set hive.exec.max.dynamic.partitions.pernode = 2000000000")
 sql(hiveContext,"set hive.exec.max.dynamic.partitions = 2000000000")
 sql(hiveContext,"set hive.exec.max.created.files = 2000000000")
 sql(hiveContext,"insert overwrite table ubi_dm_cluster_point partition (stat_date) select * from cluster_point")
+
