@@ -72,12 +72,12 @@ end_rdd<-SparkR:::mapValues(parts, function(x) {
   user_trip<-user_trip[,-1]
   user_trip<-as.matrix(user_trip)
   }
- a<-user_trip[,22]
+  a<-user_trip[,22]
   user_trip[,22]<-user_trip[,23]
   user_trip[,23]<-user_trip[,24]
   user_trip[,24]<-user_trip[,25]
   user_trip[,25]<-a
-    user_trip
+  user_trip
     })
 end_rdd_rdd <- SparkR:::flatMapValues(end_rdd, function(x) {
     stat_trip <-  matrix(unlist(x),floor(length(unlist(x))/25),ncol=25)
@@ -85,7 +85,7 @@ end_rdd_rdd <- SparkR:::flatMapValues(end_rdd, function(x) {
     stat_trip
 })
 end_rdd_value<-SparkR:::values(end_rdd_rdd)
-end_end_rdd<-SparkR:::toDF(end_rdd_value,list('deciveid','tid','vid','start','actual_start','s_end','dura','period','lat_st_ori','lon_st_ori','lat_en_ori','lon_en_ori','m_ori','lat_st_def','lon_st_def','lat_en_def','lon_en_def','m_def','speed_mean','gps_speed_sd','gps_acc_sd','stat_date','dura2','sort_st','sort_en'))
+end_end_rdd<-SparkR:::toDF(end_rdd_value,list('deciveid','tid','vid','start','actual_start','s_end','dura','period','lat_st_ori','lon_st_ori','lat_en_ori','lon_en_ori','m_ori','lat_st_def','lon_st_def','lat_en_def','lon_en_def','m_def','speed_mean','gps_speed_sd','gps_acc_sd','dura2','sort_st','sort_en','stat_date'))
 registerTempTable(end_end_rdd,"cluster_point")
 sql(hiveContext,"set hive.exec.dynamic.partition.mode=nostrick")
 sql(hiveContext,"set hive.exec.dynamic.partition=true")
