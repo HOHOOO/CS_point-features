@@ -1,5 +1,8 @@
 library(SparkR)
 ######## debugs spark 1.6 #####################################
+cd /opt/cloudera/parcels/spark-1.6.2-bin-cdh5/bin;./sparkR
+sc <- sparkR.init(appName="ClusterPoint2");sqlContext <- sparkRSQL.init(sc);hiveContext <- sparkRHive.init(sc)
+randomMatBr <- broadcast(sc, randomMat)
 connectBackend.orig <- getFromNamespace('connectBackend', pos='package:SparkR')
 connectBackend.patched <- function(hostname, port, timeout = 3600*48) {
    connectBackend.orig(hostname, port, timeout)
