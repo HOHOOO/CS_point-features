@@ -2,7 +2,7 @@ library(SparkR)
 ######## Not run: ###### debugs spark 1.6 #####################################
 cd /opt/cloudera/parcels/spark-1.6.2-bin-cdh5/bin;./sparkR
 sc <- sparkR.init(appName="ClusterPoint2");sqlContext <- sparkRSQL.init(sc);hiveContext <- sparkRHive.init(sc)
-CREATE external TABLE ubi_dm_cluster_point (deviceid String,tid String,vid String,start String,actual_start String,s_end String,dura DOUBLE,period String,lat_st_ori DOUBLE,lon_st_ori DOUBLE,lat_en_ori DOUBLE,lon_en_ori DOUBLE,m_ori DOUBLE,lat_st_def DOUBLE,lon_st_def DOUBLE,lat_en_def DOUBLE,lon_en_def DOUBLE,m_def DOUBLE,speed_mean DOUBLE,gps_speed_sd DOUBLE,gps_acc_sd DOUBLE,dura2 String,sort_st String,sort_en String,stat_date string) ROW format delimited FIELDS TERMINATED BY ',' LOCATION '/user/kettle/ubi/dm/ubi_dm_cluster_point3';
+CREATE external TABLE ubi_dm_cluster_point2 (deviceid String,tid String,vid String,start String,actual_start String,s_end String,dura DOUBLE,period String,lat_st_ori DOUBLE,lon_st_ori DOUBLE,lat_en_ori DOUBLE,lon_en_ori DOUBLE,m_ori DOUBLE,lat_st_def DOUBLE,lon_st_def DOUBLE,lat_en_def DOUBLE,lon_en_def DOUBLE,m_def DOUBLE,speed_mean DOUBLE,gps_speed_sd DOUBLE,gps_acc_sd DOUBLE,dura2 String,sort_st String,sort_en String,stat_date string) ROW format delimited FIELDS TERMINATED BY ',' LOCATION '/user/kettle/ubi/dm/ubi_dm_cluster_point2';
 hadoop fs -mkdir /user/kettle/ubi/dm/ubi_dm_cluster_point/stat_date=201601;
 /user/kettle/ubi/dm/ubi_dm_cluster_point
 randomMatBr <- broadcast(sc, randomMat)
@@ -11,7 +11,9 @@ connectBackend.patched <- function(hostname, port, timeout = 3600*48) {
    connectBackend.orig(hostname, port, timeout)
 }
 assignInNamespace("connectBackend", value=connectBackend.patched, pos='package:SparkR')
-
+遗留问题：
+1.hive中按天分区是的time.out问题；
+2.建表中的 问题。（先将int变为了string）
 ######## import data #####################################
 library(magrittr)
 SparkR:::includePackage(sqlContext, 'SoDA')
@@ -104,6 +106,7 @@ end_rdd_rdd <- SparkR:::flatMapValues(end_rdd, function(x) {
     stat_trip
 })
 end_rdd_value<-SparkR:::values(end_rdd_rdd)
+SparkR:::cache(end_rdd_value)
 SparkR:::saveAsTextFile(end_rdd_value, "/user/kettle/ubi/dm/ubi_dm_cluster_point/stat_date=201601")
 
 
