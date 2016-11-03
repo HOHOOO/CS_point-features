@@ -1,7 +1,9 @@
 library(SparkR)
-######## debugs spark 1.6 #####################################
+######## Not run: ###### debugs spark 1.6 #####################################
 cd /opt/cloudera/parcels/spark-1.6.2-bin-cdh5/bin;./sparkR
 sc <- sparkR.init(appName="ClusterPoint2");sqlContext <- sparkRSQL.init(sc);hiveContext <- sparkRHive.init(sc)
+CREATE external TABLE ubi_dm_cluster_point (deviceid String,tid String,vid String,start String,actual_start String,s_end String,dura DOUBLE,period String,lat_st_ori DOUBLE,lon_st_ori DOUBLE,lat_en_ori DOUBLE,lon_en_ori DOUBLE,m_ori DOUBLE,lat_st_def DOUBLE,lon_st_def DOUBLE,lat_en_def DOUBLE,lon_en_def DOUBLE,m_def DOUBLE,speed_mean DOUBLE,gps_speed_sd DOUBLE,gps_acc_sd DOUBLE,dura2 String,sort_st String,sort_en String,stat_date string) ROW format delimited FIELDS TERMINATED BY ',' LOCATION '/user/kettle/ubi/dm/ubi_dm_cluster_point3';
+
 randomMatBr <- broadcast(sc, randomMat)
 connectBackend.orig <- getFromNamespace('connectBackend', pos='package:SparkR')
 connectBackend.patched <- function(hostname, port, timeout = 3600*48) {
@@ -10,6 +12,9 @@ connectBackend.patched <- function(hostname, port, timeout = 3600*48) {
 assignInNamespace("connectBackend", value=connectBackend.patched, pos='package:SparkR')
 
 ######## import data #####################################
+trip<-sql(hiveContext,"SELECT * , LEAD(actual_start, 1, 0) OVER (PARTITION BY deviceid ORDER BY actual_start) AS start2 FROM trip_stat")
+trip<-withColumn(trip, "dura2", trip$start2 - trip$s_end)
+trip$start2<-NULL
 trip<-sql(hiveContext,"select * from trip_stat")
 library(magrittr)
 SparkR:::includePackage(sqlContext, 'SoDA')
@@ -102,6 +107,9 @@ end_rdd_rdd <- SparkR:::flatMapValues(end_rdd, function(x) {
     stat_trip
 })
 end_rdd_value<-SparkR:::values(end_rdd_rdd)
+
+SparkR:::saveAsTextFile(end_rdd_value, "/user/kettle/ubi/dm/ubi_dm_cluster_point")
+
 
 ######## register dynamic.partitions table #####################################
 end_end_rdd<-SparkR:::toDF(end_rdd_value,list('deciveid','tid','vid','start','actual_start','s_end','dura','period','lat_st_ori','lon_st_ori','lat_en_ori','lon_en_ori','m_ori','lat_st_def','lon_st_def','lat_en_def','lon_en_def','m_def','speed_mean','gps_speed_sd','gps_acc_sd','dura2','sort_st','sort_en','stat_date'))
