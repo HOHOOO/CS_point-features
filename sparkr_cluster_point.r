@@ -3,7 +3,8 @@ library(SparkR)
 cd /opt/cloudera/parcels/spark-1.6.2-bin-cdh5/bin;./sparkR
 sc <- sparkR.init(appName="ClusterPoint2");sqlContext <- sparkRSQL.init(sc);hiveContext <- sparkRHive.init(sc)
 CREATE external TABLE ubi_dm_cluster_point (deviceid String,tid String,vid String,start String,actual_start String,s_end String,dura DOUBLE,period String,lat_st_ori DOUBLE,lon_st_ori DOUBLE,lat_en_ori DOUBLE,lon_en_ori DOUBLE,m_ori DOUBLE,lat_st_def DOUBLE,lon_st_def DOUBLE,lat_en_def DOUBLE,lon_en_def DOUBLE,m_def DOUBLE,speed_mean DOUBLE,gps_speed_sd DOUBLE,gps_acc_sd DOUBLE,dura2 String,sort_st String,sort_en String,stat_date string) ROW format delimited FIELDS TERMINATED BY ',' LOCATION '/user/kettle/ubi/dm/ubi_dm_cluster_point3';
-
+hadoop fs -mkdir /user/kettle/ubi/dm/ubi_dm_cluster_point/stat_date=201601;
+/user/kettle/ubi/dm/ubi_dm_cluster_point
 randomMatBr <- broadcast(sc, randomMat)
 connectBackend.orig <- getFromNamespace('connectBackend', pos='package:SparkR')
 connectBackend.patched <- function(hostname, port, timeout = 3600*48) {
@@ -12,13 +13,13 @@ connectBackend.patched <- function(hostname, port, timeout = 3600*48) {
 assignInNamespace("connectBackend", value=connectBackend.patched, pos='package:SparkR')
 
 ######## import data #####################################
+library(magrittr)
+SparkR:::includePackage(sqlContext, 'SoDA')
+
 trip<-sql(hiveContext,"SELECT * , LEAD(actual_start, 1, 0) OVER (PARTITION BY deviceid ORDER BY actual_start) AS start2 FROM trip_stat")
 trip<-withColumn(trip, "dura2", trip$start2 - trip$s_end)
 trip$start2<-NULL
-trip<-sql(hiveContext,"select * from trip_stat")
-library(magrittr)
-SparkR:::includePackage(sqlContext, 'SoDA')
-trip = trip %>% withColumn("dura2", lit("0")) %>% withColumn("sort_st", lit("0")) %>% withColumn("sort_en", lit("0"))
+trip = trip %>% withColumn("sort_st", lit("0")) %>% withColumn("sort_en", lit("0"))
 trip_rdd<-SparkR:::toRDD(trip)
 
 ######## zip&groupBy with keys #####################################
@@ -45,13 +46,11 @@ end_rdd<-SparkR:::mapValues(parts, function(x) {
     }else{
       ######## Set Initial Parameters #####################################
       user_trip<-user_trip[order(user_trip[,5],decreasing=F),]
-      user_trip[(dim(user_trip)[1]),23]<-0
       user_trip[,24]<-1:dim(user_trip)[1]
       user_trip[,25]<--(1:dim(user_trip)[1])
       ######## Set Initial Parameters #####################################
       for(i in 1:(dim(user_trip)[1]-1)){
         for(j in (i+1):dim(user_trip)[1]){
-          user_trip[i,23]<-(as.numeric(user_trip[j,5])-as.numeric(user_trip[i,6]))/60
                   x<-  geoDist(user_trip[i,9],user_trip[i,10],user_trip[j,9],user_trip[j,10])
                   if(x<1000){
                     user_trip[j,24]<-user_trip[i,24]
@@ -82,7 +81,6 @@ end_rdd<-SparkR:::mapValues(parts, function(x) {
                 }              
             }
   }
-
   point<-as.data.frame(base::table(c(user_trip[,24],user_trip[,25])))
   point_table<-point[order(point$Freq,decreasing=T),]
   point_table$Freq<-1:dim(point_table)[1]
@@ -99,7 +97,6 @@ end_rdd<-SparkR:::mapValues(parts, function(x) {
   user_trip[,25]<-a
   user_trip
     })
-
 ######## change structure #####################################
 end_rdd_rdd <- SparkR:::flatMapValues(end_rdd, function(x) {
     stat_trip <-  matrix(unlist(x),floor(length(unlist(x))/25),ncol=25)
@@ -107,8 +104,7 @@ end_rdd_rdd <- SparkR:::flatMapValues(end_rdd, function(x) {
     stat_trip
 })
 end_rdd_value<-SparkR:::values(end_rdd_rdd)
-
-SparkR:::saveAsTextFile(end_rdd_value, "/user/kettle/ubi/dm/ubi_dm_cluster_point")
+SparkR:::saveAsTextFile(end_rdd_value, "/user/kettle/ubi/dm/ubi_dm_cluster_point/stat_date=201601")
 
 
 ######## register dynamic.partitions table #####################################
