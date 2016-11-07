@@ -1,6 +1,13 @@
 ##########################
 ### AddressRecognition ###
 ##########################
+
+######## Not run: ###### debugs spark 1.6 #####################################
+cd /opt/cloudera/parcels/spark-1.6.2-bin-cdh5/bin;./sparkR
+sc <- sparkR.init(appName="AddressRecognition2");sqlContext <- sparkRSQL.init(sc);hiveContext <- sparkRHive.init(sc)
+CREATE external TABLE ubi_dw_cluster_point_201601 (deviceid String,tid String,vid String,start String,actual_start String,s_end String,dura DOUBLE,period String,lat_st_ori DOUBLE,lon_st_ori DOUBLE,lat_en_ori DOUBLE,lon_en_ori DOUBLE,m_ori DOUBLE,lat_st_def DOUBLE,lon_st_def DOUBLE,lat_en_def DOUBLE,lon_en_def DOUBLE,m_def DOUBLE,speed_mean DOUBLE,gps_speed_sd DOUBLE,gps_acc_sd DOUBLE,dura2 String,sort_st String,sort_en String,stat_date string) ROW format delimited FIELDS TERMINATED BY ',' LOCATION '/user/kettle/ubi/dw/cluster_point/stat_date=201601';
+hadoop fs -mkdir /user/kettle/ubi/dm/ubi_dm_cluster_point/stat_date=201601;
+
 SparkR:::includePackage(sqlContext, 'data.table')
 SparkR:::includePackage(sqlContext, 'gdata')
 ######## test1：MODEL #####################################
@@ -174,10 +181,8 @@ testdata$V22[g]<-if(testdata$V22<0){0}else{testdata$V22[g]/3600/24}}
         mode(v) <- "numeric"
         Point_List_adj$Aarive_time[m] <- v
       }
-    }
-    Point_List_adj
-    # Pointdata_En_Workday
-  }}) 
+   
+
 
       
       bb <- which.max(base::table(Pointdata_St$V29))
@@ -226,25 +231,25 @@ testdata$V22[g]<-if(testdata$V22<0){0}else{testdata$V22[g]/3600/24}}
         Point_List_adj$time_perWorkday[m]<-0
       }else
       {
-        Point_List_adj$time_perWorkday[m] <-base::sum(Pointdata_En_Workday$V22)/(dim(base::table(flooPointdata_En_Workday$V28))[1])
+        Point_List_adj$time_perWorkday[m] <-base::sum(Pointdata_En_Workday$V22)/(dim(base::table(floor(Pointdata_En_Workday$V28)))[1])
       }
-      
+
 
 Point_List_adj$check1[m]<-if(base::match(Point_List_adj$Aarive_time[m],c(c(0:2),c(17:24)),nomatch=0)>0){1}else{0}
 Point_List_adj$check2[m]<-if(base::match(Point_List_adj$Leave_time[m],c(4:22),nomatch=0)>0){1}else{0}
 Point_List_adj$check3[m]<-if(Point_List_adj$time_active_perday[m]>=6/24){1}else{0}
 
 Point_List_adj$check4[m]<-if((base::match(Point_List_adj$Var1[m],First_St_sort,nomatch=0)>0)&(base::match(Point_List_adj$Var1[m],Last_En_sort,nomatch=0)>0)){1}else{0}
-    }
-    Point_List_adj
-    # Pointdata_En_Workday
-  }})
+
 
 Point_List_adj$check5[m]<-if(base::match(Point_List_adj$Aarive_time_workday[m],c(7:15),nomatch=0)>0){1}else{0}
 Point_List_adj$check6[m]<-if(Point_List_adj$time_perWorkday[m]>2/24&Point_List_adj$time_perWorkday[m]<18/24){1}else{0}
 Point_List_adj$check7[m]<-if(Point_List_adj$times_perWorkday[m]>4/22.75){1}else{0}
 Point_List_adj$check8[m]<-if(base::match(Point_List_adj$Var1[m],first_longtrip_sort,nomatch=0)>0){1}else{0}
-
+    }
+    Point_List_adj
+    # Pointdata_En_Workday
+  }})
     if((Point_List_adj$check1[m]+Point_List_adj$check2[m]+Point_List_adj$check3[m]+Point_List_adj$check4[m])==4)
     {
       Point_List_adj$check9[m] <- 1
