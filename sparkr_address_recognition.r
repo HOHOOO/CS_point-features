@@ -1,7 +1,7 @@
 SparkR:::includePackage(sqlContext, 'data.table')
 SparkR:::includePackage(sqlContext, 'gdata')
 ######## test1：MODEL #####################################
-trip<-sql(hiveContext,"select * from ubi_dw_cluster_point_201601 limit 11000")
+trip<-sql(hiveContext,"select * from ubi_dw_cluster_point_201601")
 library('magrittr')
 trip = trip %>% withColumn("WEEKDAY", lit("0")) %>% withColumn("start_adj", lit("0")) %>% withColumn("end_adj", lit("0")) %>% withColumn("Start_Floor", lit("0"))  %>% withColumn("End_Floor", lit("0")) %>% withColumn("Is_First_St", lit("0")) %>% withColumn("Is_Last_St", lit("0")) %>% withColumn("Is_First_long_trip", lit("0"))
 trip_rdd<-SparkR:::toRDD(trip)
@@ -324,3 +324,6 @@ if (base::length(Point_List_adj_company$Var1) == 0)
     }
     Users
 })
+end_rdd_value<-SparkR:::values(end_rdd)
+SparkR:::cache(end_rdd_value)
+SparkR:::saveAsTextFile(end_rdd_value, "/user/kettle/ubi/dm/ubi_dm_address_recognition")
