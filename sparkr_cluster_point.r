@@ -1,24 +1,21 @@
-library(SparkR)
-######## Not run: ###### debugs spark 1.6 #####################################
+######## WARNING: run in hadoop & hive &impala #####################################
+hadoop:
+hadoop fs -mkdir /user/kettle/obdbi/original/trip_stat/stat_date=20160701;
+hadoop fs -put /home/houzhiwei/stat_date=20160701/trip-stat /user/kettle/obdbi/original/trip_stat/stat_date=20160701;
+hive:
+CREATE external TABLE if not exists trip_stat_XXXXXX (deciveid String,tid String,vid String,start INT,actual_start INT,s_end INT,dura DOUBLE,period INT,lat_st_ori DOUBLE,lon_st_ori DOUBLE,lat_en_ori DOUBLE,lon_en_ori DOUBLE,m_ori DOUBLE,lat_st_def DOUBLE,lon_st_def DOUBLE,lat_en_def DOUBLE,lon_en_def DOUBLE,m_def DOUBLE,speed_mean DOUBLE,gps_speed_sd DOUBLE,gps_acc_sd DOUBLE) partitioned BY (stat_date string) ROW format delimited FIELDS TERMINATED BY ',' LOCATION '/user/kettle/obdbi/original/trip_stat';
+impala:
+impala-shell -r
+ALTER TABLE trip_stat_201607 add PArtition (stat_date="20160701");
+hadoop:
 cd /opt/cloudera/parcels/spark-1.6.2-bin-cdh5/bin;./sparkR
-sc <- sparkR.init(appName="ClusterPoint2");sqlContext <- sparkRSQL.init(sc);hiveContext <- sparkRHive.init(sc)
-CREATE external TABLE ubi_dw_cluster_point_201601 (deviceid String,tid String,vid String,start String,actual_start String,s_end String,dura DOUBLE,period String,lat_st_ori DOUBLE,lon_st_ori DOUBLE,lat_en_ori DOUBLE,lon_en_ori DOUBLE,m_ori DOUBLE,lat_st_def DOUBLE,lon_st_def DOUBLE,lat_en_def DOUBLE,lon_en_def DOUBLE,m_def DOUBLE,speed_mean DOUBLE,gps_speed_sd DOUBLE,gps_acc_sd DOUBLE,dura2 String,sort_st String,sort_en String,stat_date string) ROW format delimited FIELDS TERMINATED BY ',' LOCATION '/user/kettle/ubi/dw/cluster_point/stat_date=201601';
-hadoop fs -mkdir /user/kettle/ubi/dm/ubi_dm_cluster_point/stat_date=201601;
-/user/kettle/ubi/dm/ubi_dm_cluster_point
-randomMatBr <- broadcast(sc, randomMat)
-connectBackend.orig <- getFromNamespace('connectBackend', pos='package:SparkR')
-connectBackend.patched <- function(hostname, port, timeout = 3600*48) {
-   connectBackend.orig(hostname, port, timeout)
-}
-assignInNamespace("connectBackend", value=connectBackend.patched, pos='package:SparkR')
-遗留问题：
-1.hive中按天分区是的time.out问题；
-2.建表中的 问题。（先将int变为了string）
-######## import data #####################################
+sc <- sparkR.init(appName="cluster_point");sqlContext <- sparkRSQL.init(sc);hiveContext <- sparkRHive.init(sc)
+WARNING:XXXXXX means year/month
+######## RUN IN SPARKR: import data #####################################
+library(SparkR)
 library(magrittr)
 SparkR:::includePackage(sqlContext, 'SoDA')
-
-trip<-sql(hiveContext,"SELECT * , LEAD(actual_start, 1, 0) OVER (PARTITION BY deviceid ORDER BY actual_start) AS start2 FROM trip_stat")
+trip<-sql(hiveContext,"SELECT * , LEAD(actual_start, 1, 0) OVER (PARTITION BY deviceid ORDER BY actual_start) AS start2 FROM trip_stat_XXXXXX")
 trip<-withColumn(trip, "dura2", trip$start2 - trip$s_end)
 trip$start2<-NULL
 trip = trip %>% withColumn("sort_st", lit("0")) %>% withColumn("sort_en", lit("0"))
@@ -107,10 +104,19 @@ end_rdd_rdd <- SparkR:::flatMapValues(end_rdd, function(x) {
 })
 end_rdd_value<-SparkR:::values(end_rdd_rdd)
 SparkR:::cache(end_rdd_value)
-SparkR:::saveAsTextFile(end_rdd_value, "/user/kettle/ubi/dm/ubi_dm_cluster_point/stat_date=201601")
+SparkR:::saveAsTextFile(end_rdd_value, "/user/kettle/ubi/dm/ubi_dm_cluster_point/stat_date=XXXXXX")
+
+######## WARNING: run in hive #####################################
+CREATE external TABLE ubi_dw_cluster_point_XXXXXX (deviceid String,tid String,vid String,start String,actual_start String,s_end String,dura DOUBLE,period String,lat_st_ori DOUBLE,lon_st_ori DOUBLE,lat_en_ori DOUBLE,lon_en_ori DOUBLE,m_ori DOUBLE,lat_st_def DOUBLE,lon_st_def DOUBLE,lat_en_def DOUBLE,lon_en_def DOUBLE,m_def DOUBLE,speed_mean DOUBLE,gps_speed_sd DOUBLE,gps_acc_sd DOUBLE,dura2 String,sort_st String,sort_en String,stat_date string) ROW format delimited FIELDS TERMINATED BY ',' LOCATION '/user/kettle/ubi/dw/cluster_point/stat_date=XXXXXX';
 
 
-######## register dynamic.partitions table #####################################
+
+
+######## Not run: ###### debugs spark 1.6 #####################################
+遗留问题：
+1.动态建表hive中按天分区是的time.out问题；
+2.建表中的 问题。（先将int变为了string）
+########1. register dynamic.partitions table #####################################
 end_end_rdd<-SparkR:::toDF(end_rdd_value,list('deciveid','tid','vid','start','actual_start','s_end','dura','period','lat_st_ori','lon_st_ori','lat_en_ori','lon_en_ori','m_ori','lat_st_def','lon_st_def','lat_en_def','lon_en_def','m_def','speed_mean','gps_speed_sd','gps_acc_sd','dura2','sort_st','sort_en','stat_date'))
 registerTempTable(end_end_rdd,"cluster_point")
 sql(hiveContext,"set hive.exec.dynamic.partition.mode=nostrick")
@@ -119,3 +125,18 @@ sql(hiveContext,"set hive.exec.max.dynamic.partitions.pernode = 2000000000")
 sql(hiveContext,"set hive.exec.max.dynamic.partitions = 2000000000")
 sql(hiveContext,"set hive.exec.max.created.files = 2000000000")
 sql(hiveContext,"insert overwrite table ubi_dm_cluster_point partition (stat_date) select * from cluster_point")
+
+test：
+randomMatBr <- broadcast(sc, randomMat)
+connectBackend.orig <- getFromNamespace('connectBackend', pos='package:SparkR')
+connectBackend.patched <- function(hostname, port, timeout = 3600*48) {
+   connectBackend.orig(hostname, port, timeout)
+}
+assignInNamespace("connectBackend", value=connectBackend.patched, pos='package:SparkR')
+
+########2. factor problem #####################################
+"start String,actual_start String,s_end String"
+in R may cause factor problem
+RUN:
+col <- as.vector(unlist(col))
+mode(col) <- "numeric"
