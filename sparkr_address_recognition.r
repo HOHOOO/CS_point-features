@@ -1,12 +1,18 @@
+######## WARNING: run in hadoop #####################################
+hadoop:
+cd /opt/cloudera/parcels/spark-1.6.2-bin-cdh5/bin;./sparkR
+sc <- sparkR.init(appName="address_recognition");sqlContext <- sparkRSQL.init(sc);hiveContext <- sparkRHive.init(sc)
+WARNING:XXXXXX means year/month
+
+######## RUN IN SPARKR: import data #####################################
 SparkR:::includePackage(sqlContext, 'data.table')
 SparkR:::includePackage(sqlContext, 'gdata')
-######## test1：MODEL #####################################
-trip<-sql(hiveContext,"select * from ubi_dw_cluster_point_201601")
+trip<-sql(hiveContext,"select * from ubi_dw_cluster_point_XXXXXX")
 library('magrittr')
 trip = trip %>% withColumn("WEEKDAY", lit("0")) %>% withColumn("start_adj", lit("0")) %>% withColumn("end_adj", lit("0")) %>% withColumn("Start_Floor", lit("0"))  %>% withColumn("End_Floor", lit("0")) %>% withColumn("Is_First_St", lit("0")) %>% withColumn("Is_Last_St", lit("0")) %>% withColumn("Is_First_long_trip", lit("0"))
 trip_rdd<-SparkR:::toRDD(trip)
-######## zip&groupBy with keys #####################################
 
+######## zip&groupBy with keys #####################################
 list_rd<-SparkR:::map(trip_rdd, function(x) {
   user<-matrix(unlist(x),floor(base::length(unlist(x))/33),ncol=33,byrow=T)
   user<-user[1,1]
@@ -18,25 +24,29 @@ stat_rdd<-SparkR:::map(trip_rdd, function(x) {
 rdd<-SparkR:::zipRDD(list_rd,stat_rdd)
 parts <- SparkR:::groupByKey(rdd,200L)
 SparkR:::cache(parts)
-######## main function #####################################
+
+######## main function not including autonavi api part #####################################
 end_rdd<-SparkR:::mapValues(parts, function(x) {
   user_trip<-matrix(unlist(x),floor(base::length(unlist(x))/33),ncol=33,byrow=T)
-  
-  Users<-data.frame(matrix(0,ncol=31,nrow=1))
-  names(Users)<-c('ID','tid','vid','home1','home1_lat','home1_lon','home2','home2_lat','home2_lon','company1','company1_lat','company1_lon','company2','company2_lat','company2_lon',
+  users<-data.frame(matrix(0,ncol=31,nrow=1))
+  names(users)<-c('ID','tid','vid','home1','home1_lat','home1_lon','home2','home2_lat','home2_lon','company1','company1_lat','company1_lon','company2','company2_lat','company2_lon',
                   'home1_Freq','home1_Aarive_time','home1_Leave_time','home1_time_active_perday',
                   'home2_Freq','home2_Aarive_time','home2_Leave_time','home2_time_active_perday',
                   'company1_Freq','company1_Aarive_time_workday','company1_time_perWorkday','company1_times_perWorkday',
                   'company2_Freq','company2_Aarive_time_workday','company2_time_perWorkday','company2_times_perWorkday')
   testdata<-as.data.frame(user_trip)
-  
+
   testdata$V5 <- as.vector(unlist(testdata$V5))
   mode(testdata$V5) <- "numeric"
   testdata$V6 <- as.vector(unlist(testdata$V6))
   mode(testdata$V6) <- "numeric"
   testdata$V1 <- as.vector(unlist(testdata$V1))
   mode(testdata$V1) <- "numeric"
-  testdata<-testdata[order(testdata$V4),]
+  testdata<-testdata[order(testdata$V5),]
+  testdata$V16 <- as.vector(unlist(testdata$V16))
+  mode(testdata$V16) <- "numeric"
+  testdata$V17 <- as.vector(unlist(testdata$V17))
+  mode(testdata$V17) <- "numeric"
   testdata$V21 <- as.vector(unlist(testdata$V21))
   mode(testdata$V21) <- "numeric"
   testdata$V22 <- as.vector(unlist(testdata$V22))
@@ -55,11 +65,11 @@ end_rdd<-SparkR:::mapValues(parts, function(x) {
   mode(testdata$V32) <- "numeric"
   testdata$V33 <- as.vector(unlist(testdata$V33))
   mode(testdata$V33) <- "numeric"
-  testdata$V26<-wday(as.POSIXlt(testdata$V5,origin='1970-01-01 00:00:00',format='%Y-%m-%d %H:%M:%S','UTC'))
+  testdata$V26<-wday(as.POSIXlt(testdata$V5,origin='1970-01-01 00:00:00',format='%Y-%m-%d %H:%M:%S','uTC'))
   
-    Users$ID<-testdata$V1[1]
-    Users$tid<-testdata$V2[1]
-    Users$vid<-testdata$V3[1]
+    users$ID<-testdata$V1[1]
+    users$tid<-testdata$V2[1]
+    users$vid<-testdata$V3[1]
     testdata$V5<-(testdata$V5+8*3600)/60/60/24+70*365+19
     testdata$V6<-(testdata$V6+8*3600)/60/60/24+70*365+19
     testdata$V27<-testdata$V5-4/24
@@ -71,63 +81,46 @@ end_rdd<-SparkR:::mapValues(parts, function(x) {
     
     for (g in 1:(base::length(testdata$V1)[1]))
     {
-      testdata$V22[g]<-if(testdata$V22[g]<0){0}else{testdata$V22[g]/3600/24}}
-    for (l in 2:(base::length(testdata$V1)[1]))
-    {
-      if (floor(testdata$V27[l]) - floor(testdata$V27[l-1]) == 1)
-      {
-        testdata$V31[l]<-1
-        testdata$V32[l-1]<-1
-      }else{
-        testdata$V31[l]<-0
-        testdata$V32[l-1]<-0
-      }
-      if (testdata$V22[l]>2/24)
-      {
-        if (testdata$V31[l]==1){
-          testdata$V33[l]<-1
-        }else{
-          for (p in 1:10000){
-            if (testdata$V32[l-p]!=1){
-              if (testdata$V33[l-p]!=1){
-                if (testdata$V31[l-p]!=1){
-                }else{
-                  testdata$V33[l] <- 1
-                  break
-                }}else{
-                  testdata$V33[l] <- 0
-                  break
-                }}else{
-                  testdata$V33[l] <- 0
-                  break
-                }}}
-      }else{}}
-    
-    
+    testdata$V22[g]<-if(testdata$V22[g]<0){0}else{testdata$V22[g]/3600/24}}
     Point_List<-as.data.frame(base::table(testdata$V23))
     Point_List_adj<-subset(Point_List,subset=(Point_List$Freq!=1&Point_List$Freq!=2))
-    if (base::length(Point_List_adj$Freq)==0) {
-      Users$ID<-testdata$V1[1]
-      Users$tid<-testdata$V2[1]
-      Users$vid<-testdata$V3[1]
-      Users$home1<-0
-      Users$home1_lat<-0
-      Users$home1_lon<-0
-      Users$home2<-0
-      Users$home2_lat<-0
-      Users$home2_lon<-0
-      Users$company1<-0
-      Users$company1_lat<-0
-      Users$company1_lon<-0
-      Users$company2<-0
-      Users$company2_lat<-0
-      Users$company2_lon<-0
-      First_St_sort<-0
-      Last_En_sort<-0
-      first_longtrip_sort<-0
+
+    if (base::length(Point_List_adj$Freq)==0 | base::length(testdata$V1)[1]<5){
+      users$ID<-testdata$V1[1]
+      users$tid<-testdata$V2[1]
+      users$vid<-testdata$V3[1]
     }else{
+      for (l in 2:(base::length(testdata$V1)[1]))
+      {
+        if (floor(testdata$V27[l]) - floor(testdata$V27[l-1]) == 1)
+        {
+          testdata$V31[l]<-1
+          testdata$V32[l-1]<-1
+        }else{
+          testdata$V31[l]<-0
+          testdata$V32[l-1]<-0
+        }
+        if (testdata$V22[l]>2/24)
+        {
+          if (testdata$V31[l]==1){
+            testdata$V33[l]<-1
+          }else{
+            for (p in 1:10000){
+              if (testdata$V32[l-p]!=1){
+                if (testdata$V33[l-p]!=1){
+                  if (testdata$V31[l-p]!=1){
+                  }else{
+                    testdata$V33[l] <- 1
+                    break
+                  }}else{
+                    testdata$V33[l] <- 0
+                    break
+                  }}else{
+                    testdata$V33[l] <- 0
+                    break
+                  }}}
+        }else{}}
     Point_List_adj$Aarive_time<-0
-    
     First_St <- subset(testdata, subset = (testdata$V31 == 1))
     First_St_sort1 <-as.data.frame(base::table(First_St$V23))
     names(First_St_sort1)<-c("Var1","Freq")
@@ -137,8 +130,7 @@ end_rdd<-SparkR:::mapValues(parts, function(x) {
     }else{
       First_St_sort <- c(unlist(First_St_sort1$Var1[1:3]))
     }
-    
-    
+
     Last_En <- subset(testdata, subset = (testdata$V32 == 1))
     Last_En_sort1 <-as.data.frame(base::table(Last_En$V24))
     names(Last_En_sort1)<-c("Var1","Freq")
@@ -149,7 +141,6 @@ end_rdd<-SparkR:::mapValues(parts, function(x) {
       Last_En_sort <- c(unlist(Last_En_sort1$Var1[1:3]))
     }
 
-    
     first_longtrip_En <- subset(testdata, subset = (testdata$V33 == 1))
     first_longtrip_sort1 <-as.data.frame(base::table(first_longtrip_En$V24))
     names(first_longtrip_sort1)<-c("Var1","Freq")
@@ -172,9 +163,6 @@ end_rdd<-SparkR:::mapValues(parts, function(x) {
         Point_List_adj$time_active_perday[m] <-sum(Pointdata_En$V22)/base::length(base::table(floor(Pointdata_En$V28)))
       }
       
-      
-
-      
       b <- which.max(base::table(Pointdata_En$V30))
       g <- as.data.frame(base::table(Pointdata_En$V30))
       e <- g$Freq[b]
@@ -188,10 +176,7 @@ end_rdd<-SparkR:::mapValues(parts, function(x) {
         mode(v) <- "numeric"
         Point_List_adj$Aarive_time[m] <- v
       }
-      
-      
-      
-      
+
       bb <- which.max(base::table(Pointdata_St$V29))
       cc <- as.data.frame(base::table(Pointdata_St$V29))
       ee <- cc$Freq[bb]
@@ -205,7 +190,6 @@ end_rdd<-SparkR:::mapValues(parts, function(x) {
         mode(vv) <- "numeric"
         Point_List_adj$Leave_time[m] <-  vv
       }
-      
 
       Pointdata_En_Workday <-subset(Pointdata_En,subset = (Pointdata_En$V26 != 6 & Pointdata_En$V26 != 7))
       bbb <- which.max(base::table(Pointdata_En_Workday$V30))
@@ -222,8 +206,6 @@ end_rdd<-SparkR:::mapValues(parts, function(x) {
         mode(vvv) <- "numeric"
         Point_List_adj$Aarive_time_workday[m] <- vvv
       }
-      
-
 
       if (base::length(Pointdata_En_Workday$V1) == 0)
       {
@@ -248,8 +230,7 @@ end_rdd<-SparkR:::mapValues(parts, function(x) {
       Point_List_adj$check6[m]<-if((Point_List_adj$time_perWorkday[m]>2/24) & (Point_List_adj$time_perWorkday[m]<18/24)){1}else{0}
       Point_List_adj$check7[m]<-if(Point_List_adj$times_perWorkday[m]>4/22.75){1}else{0}
       Point_List_adj$check8[m]<-if(base::match(Point_List_adj$Var1[m],first_longtrip_sort,nomatch=0)>0){1}else{0}
-      
-      
+
       if((Point_List_adj$check1[m]+Point_List_adj$check2[m]+Point_List_adj$check3[m]+Point_List_adj$check4[m])==4)
       {
         Point_List_adj$check9[m] <- 1
@@ -257,8 +238,7 @@ end_rdd<-SparkR:::mapValues(parts, function(x) {
       {
         Point_List_adj$check9[m] <- 0
       }
-      
-      
+
       if((Point_List_adj$check5[m]+Point_List_adj$check6[m]+Point_List_adj$check7[m]+Point_List_adj$check8[m])==4)
       {
         Point_List_adj$check10[m] <- 1
@@ -269,61 +249,78 @@ end_rdd<-SparkR:::mapValues(parts, function(x) {
       
     }
 
-
-Point_List_adj_home <- subset(Point_List_adj, subset=(Point_List_adj$check9==1))
+Point_List_adj_home<-subset(Point_List_adj, subset=(Point_List_adj$check9==1))
 if (base::length(Point_List_adj_home$Var1) == 0)
 {
 }else{
   if (base::length(Point_List_adj_home$Var1) == 1)
-  {
-    Users$home1 <-Point_List_adj_home$Var1[1]
-    Users$home1_Freq<-Point_List_adj_home$Freq[1]
-    Users$home1_Aarive_time <-Point_List_adj_home$Aarive_time[1]
-    Users$home1_Leave_time<-Point_List_adj_home$Leave_time[1]
-    Users$home1_time_active_perday <-Point_List_adj_home$time_active_perday[1]
+  { users$home1 <-Point_List_adj_home$Var1[1]
+    users$home1_lat<-base::mean(subset(testdata$V16,subset = (testdata$V24==unlist(users$home1))))
+    users$home1_lon<-base::mean(subset(testdata$V17,subset = (testdata$V24==unlist(users$home1))))
+    users$home1_Freq<-Point_List_adj_home$Freq[1]
+    users$home1_Aarive_time <-Point_List_adj_home$Aarive_time[1]
+    users$home1_Leave_time<-Point_List_adj_home$Leave_time[1]
+    users$home1_time_active_perday <-Point_List_adj_home$time_active_perday[1]
   }else{
-    Users$home1 <-Point_List_adj_home$Var1[1]
-    Users$home1_Freq<-Point_List_adj_home$Freq[1]
-    Users$home1_Aarive_time <-Point_List_adj_home$Aarive_time[1]
-    Users$home1_Leave_time<-Point_List_adj_home$Leave_time[1]
-    Users$home1_time_active_perday <-Point_List_adj_home$time_active_perday[1]
-    Users$home2 <-Point_List_adj_home$Var1[2]
-    Users$home2_Freq<-Point_List_adj_home$Freq[2]
-    Users$home2_Aarive_time <-Point_List_adj_home$Aarive_time[2]
-    Users$home2_Leave_time<-Point_List_adj_home$Leave_time[2]
-    Users$home2_time_active_perday <-Point_List_adj_home$time_active_perday[2]
-  }
-}
+    users$home1 <-Point_List_adj_home$Var1[1]
+    users$home1_Freq<-Point_List_adj_home$Freq[1]
+    users$home1_Aarive_time <-Point_List_adj_home$Aarive_time[1]
+    users$home1_Leave_time<-Point_List_adj_home$Leave_time[1]
+    users$home1_time_active_perday <-Point_List_adj_home$time_active_perday[1]
+    users$home2 <-Point_List_adj_home$Var1[2]
+    users$home2_Freq<-Point_List_adj_home$Freq[2]
+    users$home2_Aarive_time <-Point_List_adj_home$Aarive_time[2]
+    users$home2_Leave_time<-Point_List_adj_home$Leave_time[2]
+    users$home2_time_active_perday <-Point_List_adj_home$time_active_perday[2]
+    users$home1_lat<-base::mean(subset(testdata$V16,subset = (testdata$V24==users$home1)))
+    users$home1_lon<-base::mean(subset(testdata$V17,subset = (testdata$V24==users$home1)))
+    users$home2_lat<-base::mean(subset(testdata$V16,subset = (testdata$V24==users$home2)))
+    users$home2_lon<-base::mean(subset(testdata$V17,subset = (testdata$V24==users$home2)))
+    }}
 
-
-Point_List_adj_company <- subset(Point_List_adj,subset=(Point_List_adj$check10==1))
+Point_List_adj_company<-subset(Point_List_adj,subset=(Point_List_adj$check10==1))
 if (base::length(Point_List_adj_company$Var1) == 0)
 {
 }else{
   if (base::length(Point_List_adj_company$Var1) == 1)
   {
-    Users$company1 <-Point_List_adj_company$Var1[1]
-    Users$company1_Freq<-Point_List_adj_company$Freq[1]
-    Users$company1_Aarive_time_workday <-Point_List_adj_company$Aarive_time_workday[1]
-    Users$company1_time_perWorkday<-Point_List_adj_company$time_perWorkday[1]
-    Users$company1_times_perWorkday <-Point_List_adj_company$times_perWorkday[1]
+    users$company1 <-Point_List_adj_company$Var1[1]
+    users$company1_Freq<-Point_List_adj_company$Freq[1]
+    users$company1_Aarive_time_workday <-Point_List_adj_company$Aarive_time_workday[1]
+    users$company1_time_perWorkday<-Point_List_adj_company$time_perWorkday[1]
+    users$company1_times_perWorkday <-Point_List_adj_company$times_perWorkday[1]
+    users$company1_lat<-base::mean(subset(testdata$V16,subset = (testdata$V24==Point_List_adj_company$Var1[1])))
+    users$company1_lon<-base::mean(subset(testdata$V17,subset = (testdata$V24==Point_List_adj_company$Var1[1])))
   }else{
-    Users$company1 <-Point_List_adj_company$Var1[1]
-    Users$company1_Freq<-Point_List_adj_company$Freq[1]
-    Users$company1_Aarive_time_workday <-Point_List_adj_company$Aarive_time[1]
-    Users$company1_time_perWorkday<-Point_List_adj_company$Leave_time[1]
-    Users$company1_times_perWorkday <-Point_List_adj_company$time_active_perday[1]
-    Users$company2 <-Point_List_adj_company$Var1[2]
-    Users$company2_Freq<-Point_List_adj_company$Freq[2]
-    Users$company2_Aarive_time_workday <-Point_List_adj_company$Aarive_time[2]
-    Users$company2_time_perWorkday<-Point_List_adj_company$Leave_time[2]
-    Users$company2_times_perWorkday <-Point_List_adj_company$time_active_perday[2]
-  }
-}
-
-    }
-    Users
+    users$company1 <-Point_List_adj_company$Var1[1]
+    users$company1_Freq<-Point_List_adj_company$Freq[1]
+    users$company1_Aarive_time_workday <-Point_List_adj_company$Aarive_time[1]
+    users$company1_time_perWorkday<-Point_List_adj_company$Leave_time[1]
+    users$company1_times_perWorkday <-Point_List_adj_company$time_active_perday[1]
+    users$company2 <-Point_List_adj_company$Var1[2]
+    users$company2_Freq<-Point_List_adj_company$Freq[2]
+    users$company2_Aarive_time_workday <-Point_List_adj_company$Aarive_time[2]
+    users$company2_time_perWorkday<-Point_List_adj_company$Leave_time[2]
+    users$company2_times_perWorkday <-Point_List_adj_company$time_active_perday[2]
+    users$company1_lat<-base::mean(subset(testdata$V16,subset = (testdata$V24==Point_List_adj_company$Var1[1])))
+    users$company1_lon<-base::mean(subset(testdata$V17,subset = (testdata$V24==Point_List_adj_company$Var1[1])))
+    users$company2_lat<-base::mean(subset(testdata$V16,subset = (testdata$V24==Point_List_adj_company$Var1[2])))
+    users$company2_lon<-base::mean(subset(testdata$V17,subset = (testdata$V24==Point_List_adj_company$Var1[2])))
+ }}}
+    users
 })
+
+######## change structure & output data #####################################
 end_rdd_value<-SparkR:::values(end_rdd)
 SparkR:::cache(end_rdd_value)
 SparkR:::saveAsTextFile(end_rdd_value, "/user/kettle/ubi/dm/ubi_dm_address_recognition")
+
+######## WARNING: run in hive #####################################
+CREATE external TABLE ubi_dm_address_recognition (deviceid String,tid String,vid String,start String,actual_start String,s_end String,dura DOUBLE,period String,lat_st_ori DOUBLE,lon_st_ori DOUBLE,lat_en_ori DOUBLE,lon_en_ori DOUBLE,m_ori DOUBLE,lat_st_def DOUBLE,lon_st_def DOUBLE,lat_en_def DOUBLE,lon_en_def DOUBLE,m_def DOUBLE,speed_mean DOUBLE,gps_speed_sd DOUBLE,gps_acc_sd DOUBLE,dura2 String,sort_st String,sort_en String,stat_date string) ROW format delimited FIELDS TERMINATED BY ',' LOCATION '/user/kettle/ubi/dm/ubi_dm_address_recognition';
+  names(users)<-c('ID','tid','vid','home1','home1_lat','home1_lon','home2','home2_lat','home2_lon','company1','company1_lat','company1_lon','company2','company2_lat','company2_lon',
+                  'home1_Freq','home1_Aarive_time','home1_Leave_time','home1_time_active_perday',
+                  'home2_Freq','home2_Aarive_time','home2_Leave_time','home2_time_active_perday',
+                  'company1_Freq','company1_Aarive_time_workday','company1_time_perWorkday','company1_times_perWorkday',
+                  'company2_Freq','company2_Aarive_time_workday','company2_time_perWorkday','company2_times_perWorkday')
+######## function： autonavi api part #####################################
+
