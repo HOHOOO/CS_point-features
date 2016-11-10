@@ -140,3 +140,63 @@ in R may cause factor problem
 RUN:
 col <- as.vector(unlist(col))
 mode(col) <- "numeric"
+ps:解决空格问题，不解决数据类型问题
+sqlstr1+=" insert overwrite table ubi_dw_cluster_point_201601 select "
+sqlstr1+=" trim(deviceid) as deviceid,"
+sqlstr1+=" trim(tid) as tid,"
+sqlstr1+=" trim(vid) as vid,"
+sqlstr1+=" trim(start) as start,"
+sqlstr1+=" trim(actual_start) as actual_start,"
+sqlstr1+=" trim(s_end) as s_end,"
+sqlstr1+=" dura,"
+sqlstr1+=" trim(period) as period,"
+sqlstr1+=" lat_st_ori,"
+sqlstr1+=" lon_st_ori,"
+sqlstr1+=" lat_en_ori,"
+sqlstr1+=" lon_en_ori,"
+sqlstr1+=" m_ori,"
+sqlstr1+=" lat_st_def,"
+sqlstr1+=" lon_st_def,"
+sqlstr1+=" lat_en_def,"
+sqlstr1+=" lon_en_def,"
+sqlstr1+=" m_def,"
+sqlstr1+=" speed_mean,"
+sqlstr1+=" gps_speed_sd,"
+sqlstr1+=" gps_acc_sd,"
+sqlstr1+=" trim(dura2) as dura2,"
+sqlstr1+=" trim(sort_st) as sort_st,"
+sqlstr1+=" trim(sort_en) as sort_en,"
+sqlstr1+=" trim(stat_date) as stat_date"
+sqlstr1+=" from"
+sqlstr1+=" ubi_dw_cluster_point_201601"
+
+
+insert overwrite table ubi_dw_cluster_point_201601 select 
+trim(deviceid) as deviceid,
+trim(tid) as tid,
+trim(vid) as vid,
+trim(start) as start,
+trim(actual_start) as actual_start,
+trim(s_end) as s_end,
+dura,
+trim(period) as period,
+lat_st_ori,
+lon_st_ori,
+lat_en_ori,
+lon_en_ori,
+m_ori,
+lat_st_def,
+lon_st_def,
+lat_en_def,
+lon_en_def,
+m_def,
+speed_mean,
+gps_speed_sd,
+gps_acc_sd,
+trim(dura2) as dura2,
+trim(sort_st) as sort_st,
+trim(sort_en) as sort_en,
+trim(stat_date) as stat_date
+from
+ubi_dw_cluster_point_201601
+
