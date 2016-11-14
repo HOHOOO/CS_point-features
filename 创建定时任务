@@ -29,3 +29,32 @@ crontab -l 显示所有的定时任务
 crontab -e 最后加入这行
 00 16 2 * * /opt/data-platform/bin/ubi_monthly.sh >> /opt/data-platform/log/ubi_monthly.log 2>&1
 
+
+
+中间数据计算(聚点)
+---------------------------------------------------------------------------------------------------------
+hadoop-namenode1:
+
+1. 创建定时任务的脚本：
+vi /opt/data-platform/bin/cluster_point_monthly.sh 
+添加内容如下：
+
+#!/bin/sh
+echo "begin: ubi_monthly "$(date "+%Y-%m-%d %H:%M:%S")
+#last_month
+end_date=$(date -d"`date +%y%m01` last day" +%Y%m)
+echo $end_date
+/opt/cloudera/parcels/SPARK/bin/spark-submit --driver-memory 20g --master spark://hadoop-namenode1:7077 /opt/data-platform/r/address_recognition.R $end_date
+
+#CREATE TABLE ubi_dm_address_recognition
+hive -e "  
+use stage; 
+CREATE external TABLE ubi_dm_address_recognition (deviceid String,tid String,vid String,start String,actual_start String,s_end String,dura DOUBLE,period String,lat_st_ori DOUBLE,lon_st_ori DOUBLE,lat_en_ori DOUBLE,lon_en_ori DOUBLE,m_ori DOUBLE,lat_st_def DOUBLE,lon_st_def DOUBLE,lat_en_def DOUBLE,lon_en_def DOUBLE,m_def DOUBLE,speed_mean DOUBLE,gps_speed_sd DOUBLE,gps_acc_sd DOUBLE,dura2 String,sort_st String,sort_en String,stat_date string) ROW format delimited FIELDS TERMINATED BY ',' LOCATION '/user/kettle/ubi/dm/ubi_dm_address_recognition';"
+
+2. 加执行权限
+chmod +x /opt/data-platform/bin/ubi_monthly.sh
+
+3. 加入调度 #每月2日16点
+crontab -l 显示所有的定时任务
+crontab -e 最后加入这行
+00 16 2 * * /opt/data-platform/bin/ubi_monthly.sh >> /opt/data-platform/log/ubi_monthly.log 2>&1
