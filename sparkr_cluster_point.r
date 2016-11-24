@@ -171,7 +171,7 @@ sqlstr1+=" from"
 sqlstr1+=" ubi_dw_cluster_point_201601"
 
 
-insert overwrite table ubi_dw_cluster_point_201601 select 
+insert overwrite table ubi_dw_cluster_point_201607 select 
 trim(deviceid) as deviceid,
 trim(tid) as tid,
 trim(vid) as vid,
@@ -198,5 +198,5 @@ trim(sort_st) as sort_st,
 trim(sort_en) as sort_en,
 trim(stat_date) as stat_date
 from
-ubi_dw_cluster_point_201601
+ubi_dw_cluster_point_201607
 
