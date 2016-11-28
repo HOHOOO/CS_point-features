@@ -1,6 +1,6 @@
 ######## RUN IN SPARKR: import data #####################################
 library(SparkR)
-sc <- sparkR.init(appName="ubi_dm_address_recognition");sqlContext <- sparkRSQL.init(sc);hiveContext <- sparkRHive.init(sc)
+sc <- sparkR.init(appName="ubi_dw_address_recognition");sqlContext <- sparkRSQL.init(sc);hiveContext <- sparkRHive.init(sc)
 connectBackend.orig <- getFromNamespace('connectBackend', pos='package:SparkR')
 connectBackend.patched <- function(hostname, port, timeout = 3600*48) {
   connectBackend.orig(hostname, port, timeout)
