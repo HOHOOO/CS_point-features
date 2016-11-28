@@ -1,0 +1,29 @@
+每月任务
+---------------------------------------------------------------------------------------------------------
+hadoop-namenode1:
+
+1. 创建定时任务的脚本：
+vi /opt/data-platform/bin/ubi_monthly.sh 
+添加内容如下：
+
+#!/bin/sh
+echo "begin: ubi_monthly "$(date "+%Y-%m-%d %H:%M:%S")
+#last_month
+end_date=$(date -d"`date +%y%m01` last day" +%Y%m)
+echo $end_date
+/opt/cloudera/parcels/SPARK/bin/spark-submit --driver-memory 20g --master spark://hadoop-namenode1:7077 /opt/data-platform/r/ubi_dw_cluster_point.R $end_date
+/opt/cloudera/parcels/SPARK/bin/spark-submit --driver-memory 20g --master spark://hadoop-namenode1:7077 /opt/data-platform/r/ubi_dw_address_recognition.R $end_date
+
+# 可访问外网的环境下运行
+/opt/cloudera/parcels/SPARK/bin/spark-submit --driver-memory 20g --master spark://hadoop-namenode1:7077 /opt/data-platform/r/ubi_dm_address_recognition.R $end_date
+
+#kylin@ZCH
+#curl "10.26.7.111:8080/bi-ws/ws/0.1/kylin/api/cube/rebuild?cubeName=********"
+
+2. 加执行权限
+chmod +x /opt/data-platform/bin/ubi_monthly.sh
+
+3. 加入调度 #每月2日16点
+crontab -l 显示所有的定时任务
+crontab -e 最后加入这行
+00 16 2 * * /opt/data-platform/bin/ubi_monthly.sh >> /opt/data-platform/log/ubi_monthly.log 2>&1
