@@ -9,7 +9,7 @@ assignInNamespace("connectBackend", value=connectBackend.patched, pos='package:S
 args <- commandArgs(trailing = TRUE)
 
 if (length(args) != 1) {
-  print("Usage: address_recognition.R <date_period>")
+  print("Usage: ubi_dw_address_recognition.R <date_period>")
   q("no")
 }
 
