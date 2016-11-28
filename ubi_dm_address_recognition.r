@@ -9,13 +9,13 @@ assignInNamespace("connectBackend", value=connectBackend.patched, pos='package:S
 args <- commandArgs(trailing = TRUE)
 
 if (length(args) != 1) {
-  print("Usage: address_recognition.R <date_period>")
+  print("Usage: ubi_dm_address_recognition.R <date_period>")
   q("no")
 }
 date_period <- args[[1]]
 
 SparkR:::includePackage(sqlContext, 'RCurl')
-trip<-sql(hiveContext,"select * from ubi_dm_address_recognition")
+trip<-sql(hiveContext,"select * from ubi_dw_address_recognition")
 library('magrittr')
 trip$stat_data<-NULL
 trip = trip %>% withColumn("home1_adress", lit("0")) %>% withColumn("home2_adress", lit("0")) %>% withColumn("company1_adress", lit("0")) %>% withColumn("company1_adress", lit("0"))  %>% withColumn("dim_month", lit(date_period))
