@@ -123,4 +123,4 @@ sql(hiveContext,"drop TABLE ubi_dw_cluster_point")
 sql(hiveContext,"CREATE external TABLE ubi_dw_cluster_point (deviceid String,tid String,vid String,start String,actual_start String,s_end String,dura DOUBLE,period String,lat_st_ori DOUBLE,lon_st_ori DOUBLE,lat_en_ori DOUBLE,lon_en_ori DOUBLE,m_ori DOUBLE,lat_st_def DOUBLE,lon_st_def DOUBLE,lat_en_def DOUBLE,lon_en_def DOUBLE,m_def DOUBLE,speed_mean DOUBLE,gps_speed_sd DOUBLE,gps_acc_sd DOUBLE,dura2 String,sort_st String,sort_en String,dim_month string) partitioned BY (stat_date string) ROW format delimited FIELDS TERMINATED BY ',' LOCATION '/user/kettle/ubi/dw/cluster_point/'")
 sql(hiveContext,paste0("ALTER TABLE ubi_dw_cluster_point add PArtition (stat_date='",date_period,"')"))
 
-sparkR.stop();
+sparkR.stop()
