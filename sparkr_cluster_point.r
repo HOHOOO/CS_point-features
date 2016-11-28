@@ -7,12 +7,21 @@ CREATE external TABLE if not exists trip_stat_XXXXXX (deciveid String,tid String
 impala:
 impala-shell -r
 ALTER TABLE trip_stat_201607 add PArtition (stat_date="20160701");
-hadoop:
-cd /opt/cloudera/parcels/spark-1.6.2-bin-cdh5/bin;./sparkR
-sc <- sparkR.init(appName="cluster_point");sqlContext <- sparkRSQL.init(sc);hiveContext <- sparkRHive.init(sc)
-WARNING:XXXXXX means year/month
+
 ######## RUN IN SPARKR: import data #####################################
 library(SparkR)
+sc <- sparkR.init(appName="ubi_dw_cluster_point");sqlContext <- sparkRSQL.init(sc);hiveContext <- sparkRHive.init(sc)
+connectBackend.orig <- getFromNamespace('connectBackend', pos='package:SparkR')
+connectBackend.patched <- function(hostname, port, timeout = 3600*48) {
+  connectBackend.orig(hostname, port, timeout)
+}
+assignInNamespace("connectBackend", value=connectBackend.patched, pos='package:SparkR')
+args <- commandArgs(trailing = TRUE)
+
+if (length(args) != 1) {
+  print("Usage: ubi_dw_cluster_point.R <date_period>")
+  q("no")
+}
 library(magrittr)
 SparkR:::includePackage(sqlContext, 'SoDA')
 trip<-sql(hiveContext,"SELECT * , LEAD(actual_start, 1, 0) OVER (PARTITION BY deviceid ORDER BY actual_start) AS start2 FROM trip_stat_XXXXXX")
@@ -114,4 +123,4 @@ sql(hiveContext,"drop TABLE ubi_dw_cluster_point")
 sql(hiveContext,"CREATE external TABLE ubi_dw_cluster_point (deviceid String,tid String,vid String,start String,actual_start String,s_end String,dura DOUBLE,period String,lat_st_ori DOUBLE,lon_st_ori DOUBLE,lat_en_ori DOUBLE,lon_en_ori DOUBLE,m_ori DOUBLE,lat_st_def DOUBLE,lon_st_def DOUBLE,lat_en_def DOUBLE,lon_en_def DOUBLE,m_def DOUBLE,speed_mean DOUBLE,gps_speed_sd DOUBLE,gps_acc_sd DOUBLE,dura2 String,sort_st String,sort_en String,dim_month string) partitioned BY (stat_date string) ROW format delimited FIELDS TERMINATED BY ',' LOCATION '/user/kettle/ubi/dw/cluster_point/'")
 sql(hiveContext,paste0("ALTER TABLE ubi_dw_cluster_point add PArtition (stat_date='",date_period,"')"))
 
-
+sparkR.stop();
