@@ -17,11 +17,11 @@ connectBackend.patched <- function(hostname, port, timeout = 3600*48) {
 }
 assignInNamespace("connectBackend", value=connectBackend.patched, pos='package:SparkR')
 args <- commandArgs(trailing = TRUE)
-
 if (length(args) != 1) {
   print("Usage: ubi_dw_cluster_point.R <date_period>")
   q("no")
 }
+date_period <- args[[1]]
 library(magrittr)
 SparkR:::includePackage(sqlContext, 'SoDA')
 trip<-sql(hiveContext,"SELECT * , LEAD(actual_start, 1, 0) OVER (PARTITION BY deviceid ORDER BY actual_start) AS start2 FROM trip_stat_XXXXXX")
