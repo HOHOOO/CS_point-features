@@ -1,13 +1,25 @@
-######## WARNING: run in hadoop #####################################
-hadoop:
-cd /opt/cloudera/parcels/spark-1.6.2-bin-cdh5/bin;./sparkR
-sc <- sparkR.init(appName="address_recognition");sqlContext <- sparkRSQL.init(sc);hiveContext <- sparkRHive.init(sc)
-WARNING:XXXXXX means year/month
-
 ######## RUN IN SPARKR: import data #####################################
+library(SparkR)
+sc <- sparkR.init(appName="ubi_dm_address_recognition");sqlContext <- sparkRSQL.init(sc);hiveContext <- sparkRHive.init(sc)
+connectBackend.orig <- getFromNamespace('connectBackend', pos='package:SparkR')
+connectBackend.patched <- function(hostname, port, timeout = 3600*48) {
+  connectBackend.orig(hostname, port, timeout)
+}
+assignInNamespace("connectBackend", value=connectBackend.patched, pos='package:SparkR')
+args <- commandArgs(trailing = TRUE)
+
+if (length(args) != 1) {
+  print("Usage: address_recognition.R <date_period>")
+  q("no")
+}
+
+# Initialize SparkContext and SQLContext
 SparkR:::includePackage(sqlContext, 'data.table')
 SparkR:::includePackage(sqlContext, 'gdata')
-trip<-sql(hiveContext,"select * from ubi_dw_cluster_point_XXXXXX")
+date_period <- args[[1]]
+trip<-sql(hiveContext,"select * from ubi_dw_cluster_point")
+
+
 library('magrittr')
 trip = trip %>% withColumn("WEEKDAY", lit("0")) %>% withColumn("start_adj", lit("0")) %>% withColumn("end_adj", lit("0")) %>% withColumn("Start_Floor", lit("0"))  %>% withColumn("End_Floor", lit("0")) %>% withColumn("Is_First_St", lit("0")) %>% withColumn("Is_Last_St", lit("0")) %>% withColumn("Is_First_long_trip", lit("0"))
 trip_rdd<-SparkR:::toRDD(trip)
@@ -35,7 +47,10 @@ end_rdd<-SparkR:::mapValues(parts, function(x) {
                   'company1_Freq','company1_Aarive_time_workday','company1_time_perWorkday','company1_times_perWorkday',
                   'company2_Freq','company2_Aarive_time_workday','company2_time_perWorkday','company2_times_perWorkday')
   testdata<-as.data.frame(user_trip)
-
+  testdata$V2 <- as.vector(unlist(testdata$V2))
+  mode(testdata$V2) <- "numeric"
+  testdata$V3 <- as.vector(unlist(testdata$V3))
+  mode(testdata$V3) <- "numeric"
   testdata$V5 <- as.vector(unlist(testdata$V5))
   mode(testdata$V5) <- "numeric"
   testdata$V6 <- as.vector(unlist(testdata$V6))
@@ -122,14 +137,18 @@ end_rdd<-SparkR:::mapValues(parts, function(x) {
         }else{}}
     Point_List_adj$Aarive_time<-0
     First_St <- subset(testdata, subset = (testdata$V31 == 1))
-    First_St_sort1 <-as.data.frame(base::table(First_St$V23))
-    names(First_St_sort1)<-c("Var1","Freq")
-    First_St_sort1<-First_St_sort1[order(-First_St_sort1$Freq),]
-    if(base::length(First_St_sort1$Var1) < 3){
+    if(dim(First_St)[1]==0)
+      {
+      First_St_sort <- c("0")
+    }else{
+      First_St_sort1 <-as.data.frame(base::table(First_St$V23))
+      names(First_St_sort1)<-c("Var1","Freq")
+      First_St_sort1<-First_St_sort1[order(-First_St_sort1$Freq),]
+      if(base::length(First_St_sort1$Var1) < 3){
       First_St_sort <- c(unlist(First_St_sort1$Var1))
     }else{
       First_St_sort <- c(unlist(First_St_sort1$Var1[1:3]))
-    }
+    }}
 
     Last_En <- subset(testdata, subset = (testdata$V32 == 1))
     Last_En_sort1 <-as.data.frame(base::table(Last_En$V24))
@@ -142,6 +161,10 @@ end_rdd<-SparkR:::mapValues(parts, function(x) {
     }
 
     first_longtrip_En <- subset(testdata, subset = (testdata$V33 == 1))
+    if(dim(first_longtrip_En)[1]==0)
+    {
+      first_longtrip_sort <- c("0")
+    }else{
     first_longtrip_sort1 <-as.data.frame(base::table(first_longtrip_En$V24))
     names(first_longtrip_sort1)<-c("Var1","Freq")
     first_longtrip_sort1<-first_longtrip_sort1[order(-first_longtrip_sort1$Freq),]
@@ -149,8 +172,8 @@ end_rdd<-SparkR:::mapValues(parts, function(x) {
       first_longtrip_sort <- c(unlist(first_longtrip_sort1$Var1))
     }else{
       first_longtrip_sort <- c(unlist(first_longtrip_sort1$Var1[1:3]))
-    }
-
+    }}
+ 
     for (m in 1:base::length(Point_List_adj$Var1))
     {
       a <- as.numeric(Point_List_adj$Var1[m])
@@ -309,18 +332,10 @@ if (base::length(Point_List_adj_company$Var1) == 0)
  }}}
     users
 })
-
 ######## change structure & output data #####################################
 end_rdd_value<-SparkR:::values(end_rdd)
-SparkR:::cache(end_rdd_value)
-SparkR:::saveAsTextFile(end_rdd_value, "/user/kettle/ubi/dm/ubi_dm_address_recognition")
-
-######## WARNING: run in hive #####################################
-CREATE external TABLE ubi_dm_address_recognition (deviceid String,tid String,vid String,start String,actual_start String,s_end String,dura DOUBLE,period String,lat_st_ori DOUBLE,lon_st_ori DOUBLE,lat_en_ori DOUBLE,lon_en_ori DOUBLE,m_ori DOUBLE,lat_st_def DOUBLE,lon_st_def DOUBLE,lat_en_def DOUBLE,lon_en_def DOUBLE,m_def DOUBLE,speed_mean DOUBLE,gps_speed_sd DOUBLE,gps_acc_sd DOUBLE,dura2 String,sort_st String,sort_en String,stat_date string) ROW format delimited FIELDS TERMINATED BY ',' LOCATION '/user/kettle/ubi/dm/ubi_dm_address_recognition';
-  names(users)<-c('ID','tid','vid','home1','home1_lat','home1_lon','home2','home2_lat','home2_lon','company1','company1_lat','company1_lon','company2','company2_lat','company2_lon',
-                  'home1_Freq','home1_Aarive_time','home1_Leave_time','home1_time_active_perday',
-                  'home2_Freq','home2_Aarive_time','home2_Leave_time','home2_time_active_perday',
-                  'company1_Freq','company1_Aarive_time_workday','company1_time_perWorkday','company1_times_perWorkday',
-                  'company2_Freq','company2_Aarive_time_workday','company2_time_perWorkday','company2_times_perWorkday')
-######## function： autonavi api part #####################################
-
+SparkR:::saveAsTextFile(end_rdd_value, paste0("/user/kettle/ubi/dw/ubi_dw_address_recognition/stat_date='",date_period,"01'"))
+sql(hiveContext,"drop TABLE ubi_dw_address_recognition")
+sql(hiveContext,"CREATE external TABLE ubi_dw_address_recognition (deviceid String,tid String,vid String,home1 String,home1_lat double,home1_lon double,home2 String,home2_lat double,home2_lon double,company1 String,company1_lat double,company1_lon double,company2 String,company2_lat double,company2_lon double,home1_Freq double,home1_Aarive_time string,home1_Leave_time string,home1_time_active_perday double,home2_Freq double,home2_Aarive_time string,home2_Leave_time string,home2_time_active_perday double,company1_Freq double,company1_Aarive_time_workday string,company1_time_perWorkday double,company1_times_perWorkday double,company2_Freq double,company2_Aarive_time_workday string,company2_time_perWorkday double,company2_times_perWorkday double) partitioned BY (stat_date string) ROW format delimited FIELDS TERMINATED BY ',' LOCATION '/user/kettle/ubi/dw/ubi_dw_address_recognition/'")
+sql(hiveContext,paste0("ALTER TABLE ubi_dw_address_recognition add PArtition (stat_date='",date_period,"01')"))
+sparkR.stop()
