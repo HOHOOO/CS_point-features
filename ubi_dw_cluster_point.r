@@ -3,7 +3,7 @@ hadoop:
 hadoop fs -mkdir /user/kettle/obdbi/original/trip_stat/stat_date=20160701;
 hadoop fs -put /home/houzhiwei/stat_date=20160701/trip-stat /user/kettle/obdbi/original/trip_stat/stat_date=20160701;
 hive:
-CREATE external TABLE if not exists trip_stat_XXXXXX (deciveid String,tid String,vid String,start INT,actual_start INT,s_end INT,dura DOUBLE,period INT,lat_st_ori DOUBLE,lon_st_ori DOUBLE,lat_en_ori DOUBLE,lon_en_ori DOUBLE,m_ori DOUBLE,lat_st_def DOUBLE,lon_st_def DOUBLE,lat_en_def DOUBLE,lon_en_def DOUBLE,m_def DOUBLE,speed_mean DOUBLE,gps_speed_sd DOUBLE,gps_acc_sd DOUBLE) partitioned BY (stat_date string) ROW format delimited FIELDS TERMINATED BY ',' LOCATION '/user/kettle/obdbi/original/trip_stat';
+CREATE external TABLE if not exists trip_stat_XXXXXX (deviceid String,tid String,vid String,start INT,actual_start INT,s_end INT,dura DOUBLE,period INT,lat_st_ori DOUBLE,lon_st_ori DOUBLE,lat_en_ori DOUBLE,lon_en_ori DOUBLE,m_ori DOUBLE,lat_st_def DOUBLE,lon_st_def DOUBLE,lat_en_def DOUBLE,lon_en_def DOUBLE,m_def DOUBLE,speed_mean DOUBLE,gps_speed_sd DOUBLE,gps_acc_sd DOUBLE) partitioned BY (stat_date string) ROW format delimited FIELDS TERMINATED BY ',' LOCATION '/user/kettle/obdbi/original/trip_stat';
 impala:
 impala-shell -r
 ALTER TABLE trip_stat_201607 add PArtition (stat_date="20160701");
