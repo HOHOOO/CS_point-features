@@ -17,7 +17,7 @@ if (length(args) != 1) {
 SparkR:::includePackage(sqlContext, 'data.table')
 SparkR:::includePackage(sqlContext, 'gdata')
 date_period <- args[[1]]
-trip<-sql(hiveContext,"select * from ubi_dw_cluster_point")
+trip<-sql(hiveContext,paste0("select * from ubi_dw_cluster_point where stat_date like'",date_period,"01'"))
 
 
 library('magrittr')
@@ -334,8 +334,8 @@ end_rdd<-SparkR:::mapValues(parts, function(x) {
 })
 ######## change structure & output data #####################################
 end_rdd_value<-SparkR:::values(end_rdd)
-SparkR:::saveAsTextFile(end_rdd_value, paste0("/user/kettle/ubi/dw/ubi_dw_address_recognition/stat_date='",date_period,"01'"))
+SparkR:::saveAsTextFile(end_rdd_value, paste0("/user/kettle/ubi/dw/ubi_dw_address_recognition/stat_date=",date_period,"01"))
 sql(hiveContext,"drop TABLE ubi_dw_address_recognition")
-sql(hiveContext,"CREATE external TABLE ubi_dw_address_recognition (deviceid String,tid String,vid String,home1 String,home1_lat double,home1_lon double,home2 String,home2_lat double,home2_lon double,company1 String,company1_lat double,company1_lon double,company2 String,company2_lat double,company2_lon double,home1_Freq double,home1_Aarive_time string,home1_Leave_time string,home1_time_active_perday double,home2_Freq double,home2_Aarive_time string,home2_Leave_time string,home2_time_active_perday double,company1_Freq double,company1_Aarive_time_workday string,company1_time_perWorkday double,company1_times_perWorkday double,company2_Freq double,company2_Aarive_time_workday string,company2_time_perWorkday double,company2_times_perWorkday double) partitioned BY (stat_date string) ROW format delimited FIELDS TERMINATED BY ',' LOCATION '/user/kettle/ubi/dw/ubi_dw_address_recognition'")
-sql(hiveContext,paste0("ALTER TABLE ubi_dw_address_recognition add PArtition (stat_date='",date_period,"01')"))
+sql(hiveContext,paste0("CREATE external TABLE ubi_dw_address_recognition (deviceid String,tid String,vid String,home1 String,home1_lat double,home1_lon double,home2 String,home2_lat double,home2_lon double,company1 String,company1_lat double,company1_lon double,company2 String,company2_lat double,company2_lon double,home1_Freq double,home1_Aarive_time string,home1_Leave_time string,home1_time_active_perday double,home2_Freq double,home2_Aarive_time string,home2_Leave_time string,home2_time_active_perday double,company1_Freq double,company1_Aarive_time_workday string,company1_time_perWorkday double,company1_times_perWorkday double,company2_Freq double,company2_Aarive_time_workday string,company2_time_perWorkday double,company2_times_perWorkday double)ROW format delimited FIELDS TERMINATED BY ',' LOCATION '/user/kettle/ubi/dw/ubi_dw_address_recognition/stat_date=",date_period,"01'"))
+sql(hiveContext,"insert overwrite table ubi_dw_address_recognition select trim(deviceid) as deviceid, trim(tid) as tid, trim(vid) as vid, trim(home1) as home1, trim(home1_lat) as home1_lat, trim(home1_lon) as home1_lon, trim(home2) as home2, trim(home2_lat) as home2_lat, trim(home2_lon) as home2_lon, trim(company1) as company1, trim(company1_lat) as company1_lat, trim(company1_lon) as company1_lon, trim(company2) as company2, trim(company2_lat) as company2_lat, trim(company2_lon) as company2_lon, trim(home1_Freq) as home1_Freq, trim(home1_Aarive_time) as home1_Aarive_time, trim(home1_Leave_time) as home1_Leave_time, trim(home1_time_active_perday) as home1_time_active_perday, trim(home2_Freq) as home2_Freq, trim(home2_Aarive_time) as home2_Aarive_time, trim(home2_Leave_time) as home2_Leave_time, trim(home2_time_active_perday) as home2_time_active_perday, trim(company1_Freq) as company1_Freq, trim(company1_Aarive_time_workday) as company1_Aarive_time_workday, trim(company1_time_perWorkday) as company1_time_perWorkday, trim(company1_times_perWorkday) as company1_times_perWorkday, trim(company2_Freq) as company2_Freq, trim(company2_Aarive_time_workday) as company2_Aarive_time_workday, trim(company2_time_perWorkday) as company2_time_perWorkday, trim(company2_times_perWorkday) as company2_times_perWorkday from ubi_dw_address_recognition")
 sparkR.stop()
