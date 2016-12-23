@@ -23,7 +23,7 @@ trip_rdd<-SparkR:::toRDD(trip)
 ######## zip&groupBy with keys #####################################
 list_rd<-SparkR:::map(trip_rdd, function(x) {
   user<-matrix(unlist(x),floor(length(unlist(x))/25),ncol=25,byrow=T)
-  user<-user[1,2]
+  user<-user[1,3]
 })
 stat_rdd<-SparkR:::map(trip_rdd, function(x) {
   stat_trip<-matrix(unlist(x),floor(length(unlist(x))/25),ncol=25,byrow=T)
